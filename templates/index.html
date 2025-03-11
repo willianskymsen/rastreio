@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreamento NF-e</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        ul#fileList {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        ul#fileList li {
+            margin: 10px 0;
+        }
+
+        ul#fileList li a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        ul#fileList li a:hover {
+            text-decoration: underline;
+        }
+
+        #result {
+            margin-top: 20px;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rastreamento de NF-e</h1>
+        <h2>Arquivos XML Disponíveis:</h2>
+        <ul id="fileList">
+            <!-- Lista de arquivos será preenchida dinamicamente -->
+        </ul>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Função para carregar a lista de arquivos XML
+        function carregarArquivos() {
+            fetch('/api/arquivos')
+                .then(response => response.json())
+                .then(files => {
+                    const fileList = document.getElementById('fileList');
+                    fileList.innerHTML = files.map(file => `
+                        <li><a href="#" class="fileLink" data-filename="${file}">${file}</a></li>
+                    `).join('');
+
+                    // Adiciona eventos aos links
+                    document.querySelectorAll('.fileLink').forEach(link => {
+                        link.addEventListener('click', function(event) {
+                            event.preventDefault();
+                            const filename = this.getAttribute('data-filename');
+                            buscarDados(filename);
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar arquivos:', error);
+                });
+        }
+
+        // Função para buscar dados de rastreamento
+        function buscarDados(filename) {
+            fetch('/api/dados', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ filename: filename })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const resultDiv = document.getElementById('result');
+                if (data.error) {
+                    resultDiv.innerHTML = `<p class="error">${data.error}</p>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h2>Resultado:</h2>
+                        <p><strong>Destinatário:</strong> ${data.destinatario}</p>
+                        <p><strong>Número NF-e:</strong> ${data.nro_nf}</p>
+                        <h3>Eventos:</h3>
+                        <ul>
+                            ${data.items.map(item => `
+                                <li>
+                                    <strong>Data/Hora:</strong> ${item.data_hora}<br>
+                                    <strong>Ocorrência:</strong> ${item.ocorrencia}<br>
+                                    <strong>Descrição:</strong> ${item.descricao}<br>
+                                    <strong>Tipo:</strong> ${item.tipo}<br>
+                                    <strong>Recebedor:</strong> ${item.nome_recebedor}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+            });
+        }
+
+        // Carrega a lista de arquivos ao carregar a página
+        document.addEventListener('DOMContentLoaded', carregarArquivos);
+    </script>
+</body>
+</html>
