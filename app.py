@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, render_template, request
 import requests
+import pandas as pd
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import os
@@ -9,29 +10,6 @@ app = Flask(__name__)
 # Pasta onde os arquivos XML estão armazenados
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Diretório do script atual
 XML_FOLDER = os.path.join(BASE_DIR, "xml")  # Caminho completo para a pasta 'xml'
-
-def extract_key_from_xml(xml_file):
-    """Extrai a chave da NF-e de um arquivo XML."""
-    try:
-        # Define o namespace do XML
-        namespaces = {
-            'nfe': 'http://www.portalfiscal.inf.br/nfe'
-        }
-        
-        # Faz o parse do arquivo XML
-        tree = ET.parse(xml_file)
-        root = tree.getroot()
-        
-        # Encontra a tag <chNFe> dentro de <infProt>
-        chNFe = root.find(".//nfe:infProt/nfe:chNFe", namespaces)
-        if chNFe is None:
-            print("Tag <chNFe> não encontrada no XML.")
-            return None
-        
-        return chNFe.text  # Retorna o texto da chave
-    except Exception as e:
-        print(f"Erro ao processar o arquivo XML: {e}")
-        return None
 
 def fetch_tracking_data(chave_nfe):
     """Faz a requisição à API e retorna os dados processados com base na chave da NF-e."""
@@ -104,57 +82,55 @@ def index():
 
 @app.route('/api/arquivos', methods=['GET'])
 def api_arquivos():
-    """Retorna a lista de arquivos XML na pasta com o número da NF-e."""
-    if not os.path.exists(XML_FOLDER):
-        return jsonify({"error": f"Pasta 'xml' não encontrada em {XML_FOLDER}"}), 404
-    
-    xml_files = [f for f in os.listdir(XML_FOLDER) if f.endswith('.xml')]
-    if not xml_files:
-        return jsonify({"error": "Nenhum arquivo XML encontrado na pasta 'xml/'"}), 404
-    
-    arquivos_info = []
-    for file in xml_files:
-        xml_file_path = os.path.join(XML_FOLDER, file)
-        try:
-            tree = ET.parse(xml_file_path)
-            root = tree.getroot()
-            
-            # Extrai o número da NF-e
-            nNF = root.find(".//nfe:ide/nfe:nNF", namespaces={'nfe': 'http://www.portalfiscal.inf.br/nfe'})
-            if nNF is None:
-                print(f"Tag <nNF> não encontrada no arquivo {file}.")
-                continue
-            
-            arquivos_info.append({"filename": file, "nNF": nNF.text})
-        except Exception as e:
-            print(f"Erro ao processar o arquivo {file}: {e}")
-            continue
-    
-    return jsonify(arquivos_info)
+    try:
+        # Carrega a planilha Excel
+        df = pd.read_excel(os.path.join(BASE_DIR, "notas.xlsx"))
+        
+        # Verifica se as colunas necessárias existem
+        if 'NUM_NF' not in df.columns or 'CHAVE' not in df.columns:
+            return jsonify({"error": "Planilha não contém as colunas 'NUM_NF' e 'CHAVE'"}), 400
+        
+        # Cria a lista de arquivos (agora baseada na planilha)
+        arquivos_info = []
+        for index, row in df.iterrows():
+            arquivos_info.append({
+                "filename": str(row['NUM_NF']),  # Usamos NUM_NF como identificador
+                "nNF": row['NUM_NF']            # Número da NF-e
+            })
+        
+        return jsonify(arquivos_info)
+    except Exception as e:
+        print(f"Erro ao ler a planilha Excel: {e}")
+        return jsonify({"error": "Erro ao processar a planilha de notas"}), 500
 
 @app.route('/api/dados', methods=['POST'])
 def api_dados():
-    # Obtém o nome do arquivo enviado pelo frontend
-    filename = request.json.get("filename")
-    if not filename:
-        return jsonify({"error": "Nome do arquivo não fornecido"}), 400
-    
-    # Caminho completo do arquivo
-    xml_file_path = os.path.join(XML_FOLDER, filename)
-    if not os.path.exists(xml_file_path):
-        return jsonify({"error": f"Arquivo '{filename}' não encontrado na pasta 'xml/'"}), 404
-    
-    # Extrai a chave da NF-e do XML
-    chave_nfe = extract_key_from_xml(xml_file_path)
-    if not chave_nfe:
-        return jsonify({"error": "Não foi possível extrair a chave da NF-e do XML"}), 400
-    
-    # Busca os dados de rastreamento
-    dados = fetch_tracking_data(chave_nfe)
-    if dados:
-        return jsonify(dados)
-    else:
-        return jsonify({"error": "Não foi possível obter os dados"}), 500
+    try:
+        # Obtém o número da NF-e enviado pelo frontend
+        num_nf = request.json.get("filename")
+        if not num_nf:
+            return jsonify({"error": "Número da NF-e não fornecido"}), 400
+        
+        # Carrega a planilha Excel
+        df = pd.read_excel(os.path.join(BASE_DIR, "notas.xlsx"))
+        
+        # Filtra a linha correspondente ao número da NF-e
+        nf_info = df[df['NUM_NF'] == int(num_nf)]
+        if nf_info.empty:
+            return jsonify({"error": f"NF-e {num_nf} não encontrada na planilha"}), 404
+        
+        # Obtém a chave da NF-e da coluna 'CHAVE'
+        chave_nfe = nf_info['CHAVE'].values[0]
+        
+        # Busca os dados de rastreamento
+        dados = fetch_tracking_data(chave_nfe)
+        if dados:
+            return jsonify(dados)
+        else:
+            return jsonify({"error": "Não foi possível obter os dados de rastreamento"}), 500
+    except Exception as e:
+        print(f"Erro ao processar a requisição: {e}")
+        return jsonify({"error": "Erro interno no servidor"}), 500
 
 if __name__ == "__main__":
     # Cria a pasta 'xml' se ela não existir

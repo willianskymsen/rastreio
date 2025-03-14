@@ -2,11 +2,11 @@
 function carregarArquivos() {
     const fileList = document.getElementById('fileList');
     fileList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando documentos fiscais...</p></div>';
-    
+
     // Adicionar tempo mínimo de exibição do loading para evitar flash de conteúdo
     const startTime = new Date().getTime();
     const minLoadTime = 700; // milissegundos
-    
+
     fetch('/api/arquivos')
         .then(response => {
             if (!response.ok) {
@@ -18,14 +18,14 @@ function carregarArquivos() {
             // Garantir tempo mínimo de loading
             const elapsedTime = new Date().getTime() - startTime;
             const remainingTime = Math.max(0, minLoadTime - elapsedTime);
-            
+
             setTimeout(() => {
                 renderizarArquivos(files);
             }, remainingTime);
         })
         .catch(error => {
             console.error('Erro ao carregar arquivos:', error);
-            
+
             setTimeout(() => {
                 fileList.innerHTML = `
                     <div class="error">
@@ -40,7 +40,7 @@ function carregarArquivos() {
 // Função para renderizar a lista de arquivos
 function renderizarArquivos(files) {
     const fileList = document.getElementById('fileList');
-    
+
     if (files.length === 0) {
         fileList.innerHTML = `
             <div class="empty-state">
@@ -50,10 +50,10 @@ function renderizarArquivos(files) {
             </div>
         `;
     } else {
-        // Ordenar arquivos pela data mais recente (considerando que o nome contém informação de data)
-        // Ou por número da NF decrescente como alternativa
+        // Ordenar arquivos por número da NF decrescente
         files.sort((a, b) => b.nNF - a.nNF);
-        
+
+        // Renderizar a lista de arquivos
         fileList.innerHTML = files.map(file => `
             <li>
                 <a href="#" class="fileLink" data-filename="${file.filename}">
@@ -74,17 +74,19 @@ function renderizarArquivos(files) {
                 document.querySelectorAll('.fileLink').forEach(l => l.classList.remove('active'));
                 // Adiciona classe ativa ao item clicado
                 this.classList.add('active');
-                
+
                 const filename = this.getAttribute('data-filename');
                 buscarDados(filename);
             });
         });
-        
+
         // Seleciona automaticamente o primeiro item da lista
         if (files.length > 0) {
             const firstLink = document.querySelector('.fileLink');
-            firstLink.classList.add('active');
-            buscarDados(firstLink.getAttribute('data-filename'));
+            if (firstLink) {
+                firstLink.classList.add('active');
+                buscarDados(firstLink.getAttribute('data-filename'));
+            }
         }
     }
 }
@@ -92,7 +94,7 @@ function renderizarArquivos(files) {
 // Função para formatar data e hora
 function formatarDataHora(dataHoraString) {
     if (!dataHoraString) return '';
-    
+
     try {
         const data = new Date(dataHoraString);
         return new Intl.DateTimeFormat('pt-BR', {
@@ -110,12 +112,12 @@ function formatarDataHora(dataHoraString) {
 // Função para determinar a classe de status com base no tipo do evento
 function determinarClasseEvento(item) {
     if (item.tipo === 'entrega' && (
-        item.ocorrencia.toLowerCase().includes('entregue') || 
+        item.ocorrencia.toLowerCase().includes('entregue') ||
         item.ocorrencia.toLowerCase().includes('finaliz')
     )) {
         return 'event-entregue';
     } else if (
-        item.ocorrencia.toLowerCase().includes('problema') || 
+        item.ocorrencia.toLowerCase().includes('problema') ||
         item.ocorrencia.toLowerCase().includes('devol') ||
         item.ocorrencia.toLowerCase().includes('recusa') ||
         item.ocorrencia.toLowerCase().includes('ausente')
@@ -128,14 +130,14 @@ function determinarClasseEvento(item) {
 // Função para buscar dados de rastreamento
 function buscarDados(filename) {
     if (!filename) return;
-    
+
     const resultDiv = document.getElementById('result');
     resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando dados de rastreamento...</p></div>';
-    
+
     // Adicionar tempo mínimo de exibição do loading
     const startTime = new Date().getTime();
     const minLoadTime = 800; // milissegundos
-    
+
     fetch('/api/dados', {
         method: 'POST',
         headers: {
@@ -153,14 +155,14 @@ function buscarDados(filename) {
         // Garantir tempo mínimo de loading
         const elapsedTime = new Date().getTime() - startTime;
         const remainingTime = Math.max(0, minLoadTime - elapsedTime);
-        
+
         setTimeout(() => {
             renderizarDados(data, filename);
         }, remainingTime);
     })
     .catch(error => {
         console.error('Erro:', error);
-        
+
         setTimeout(() => {
             resultDiv.innerHTML = `
                 <div class="error">
@@ -175,7 +177,7 @@ function buscarDados(filename) {
 // Função para renderizar os dados
 function renderizarDados(data, filename) {
     const resultDiv = document.getElementById('result');
-    
+
     if (data.error) {
         resultDiv.innerHTML = `
             <div class="error">
@@ -185,33 +187,33 @@ function renderizarDados(data, filename) {
         `;
         return;
     }
-    
+
     // Ordenar eventos por ordem cronológica decrescente, com "MERCADORIA ENTREGUE" sempre primeiro
     if (data.items && data.items.length > 0) {
         data.items.sort((a, b) => {
             const isEntregaA = a.ocorrencia.toLowerCase().includes('mercadoria entregue');
             const isEntregaB = b.ocorrencia.toLowerCase().includes('mercadoria entregue');
-            
+
             // Se A for "MERCADORIA ENTREGUE" e B não for, A vem primeiro
             if (isEntregaA && !isEntregaB) return -1;
             // Se B for "MERCADORIA ENTREGUE" e A não for, B vem primeiro
             if (isEntregaB && !isEntregaA) return 1;
-            
+
             // Se ambos forem ou não forem "MERCADORIA ENTREGUE", ordena por data decrescente
             const dataA = new Date(a.data_hora);
             const dataB = new Date(b.data_hora);
             return dataB - dataA;
         });
     }
-    
+
     // Identificar o status atual com base no evento mais recente
     let statusAtual = 'Em processamento';
     let statusIcone = 'fas fa-clock';
     let statusClasse = 'status-processing';
-    
+
     if (data.items && data.items.length > 0) {
         const ultimoEvento = data.items[0];
-        
+
         if (ultimoEvento.ocorrencia.toLowerCase().includes('entregue')) {
             statusAtual = 'Entregue';
             statusIcone = 'fas fa-check-circle';
@@ -226,7 +228,7 @@ function renderizarDados(data, filename) {
             statusClasse = 'status-transit';
         }
     }
-    
+
     // Encontrar a primeira data do rastreio (data mais antiga)
     let primeiraDataRastreio = null;
     if (data.items && data.items.length > 0) {
@@ -238,18 +240,18 @@ function renderizarDados(data, filename) {
         });
         primeiraDataRastreio = eventosOrdenadosCrescente[0].data_hora;
     }
-    
+
     // Encontrar a data de entrega (último evento de entrega)
     let dataEntrega = null;
     if (data.items && data.items.length > 0) {
-        const eventoEntrega = data.items.find(item => 
+        const eventoEntrega = data.items.find(item =>
             item.ocorrencia.toLowerCase().includes('mercadoria entregue')
         );
         if (eventoEntrega) {
             dataEntrega = eventoEntrega.data_hora;
         }
     }
-    
+
     // Calcular o tempo de transporte (dias entre emissão e entrega)
     let tempoTransporte = null;
     if (primeiraDataRastreio && dataEntrega) {
@@ -258,13 +260,13 @@ function renderizarDados(data, filename) {
         const diferencaMs = dataEntregaObj - dataEmissao; // Diferença em milissegundos
         tempoTransporte = Math.floor(diferencaMs / (1000 * 60 * 60 * 24)); // Converter para dias
     }
-    
+
     // Formatar a exibição dos eventos
-    const formattedEvents = data.items && data.items.length > 0 
+    const formattedEvents = data.items && data.items.length > 0
         ? data.items.map(item => {
             const eventClass = determinarClasseEvento(item);
-            const dataFormatada = formatarDataHora(item.data_hora); // Formata a data apenas na exibição
-            
+            const dataFormatada = formatarDataHora(item.data_hora);
+
             return `
                 <div class="event-item ${eventClass}">
                     <div class="event-header">
@@ -297,7 +299,7 @@ function renderizarDados(data, filename) {
                 <span>${statusAtual}</span>
             </div>
         </div>
-        
+
         <div class="nf-info">
             <div>
                 <div class="info-label">Destinatário</div>
@@ -320,13 +322,13 @@ function renderizarDados(data, filename) {
                 <div class="info-value">${tempoTransporte !== null ? `${tempoTransporte} dia(s)` : '--'}</div>
             </div>
         </div>
-        
+
         <h3><i class="fas fa-history"></i> Histórico de Eventos</h3>
         <div class="events-list">
             ${formattedEvents}
         </div>
     `;
-    
+
     // Adicionar rolagem suave ao carregar os dados
     window.requestAnimationFrame(() => {
         const eventsDiv = document.querySelector('.events-list');
@@ -339,7 +341,7 @@ function renderizarDados(data, filename) {
 // Inicialização ao carregar a página
 document.addEventListener('DOMContentLoaded', () => {
     carregarArquivos();
-    
+
     // Adicionar botão de atualização se necessário
     const header = document.querySelector('.sidebar h2');
     if (header) {
