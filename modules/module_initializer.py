@@ -1,5 +1,5 @@
 # modules/module_initializer.py
-from .database import init_db
+from .database import init_databases
 from .logger_config import init_logger
 from .tracking import init_tracking
 from .status import init_status
@@ -12,7 +12,7 @@ def initialize_modules():
     init_logger()
     
     # 2. Banco de dados (os outros módulos podem depender dele)
-    init_db()
+    init_databases()
     
     # 3. Demais módulos
     init_tracking()

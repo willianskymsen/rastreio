@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 import mysql.connector
-from modules.database import get_mysql_connection, close_mysql_connection
+from modules.database import get_mysql_connection, close_connection
 from modules.tracking import fetch_tracking_data
 from modules.status import determinar_status
 
@@ -99,7 +99,7 @@ def processar_nfe(chave_nfe: str,
         return False
     finally:
         if conn:
-            close_mysql_connection(conn)
+            close_connection(conn)
 
 def _insert_evento(cursor, chave_nfe, num_nf, evento, status, transportadora, cidade, uf):
     """Função auxiliar para inserir um evento no banco"""

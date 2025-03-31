@@ -1,66 +1,147 @@
+# modules/database.py
 import time
 import logging
 import mysql.connector
-from config import MYSQL_CONFIG
-from typing import Optional
+import cx_Oracle
+from typing import Optional, Union
+from config import MYSQL_CONFIG, ORACLE_PASSWORD, ORACLE_SERVICE_NAME, ORACLE_USER
 
 logger = logging.getLogger(__name__)
 
-# Variável para verificar se o banco já foi testado
-_db_initialized = False
+# Variáveis para controle de inicialização
+_mysql_initialized = False
+_oracle_initialized = False
 
-def init_db():
-    """Função de inicialização que testa a conexão"""
-    global _db_initialized
-    if not _db_initialized:
-        logger.info("🔧 Verificando conexão com o MySQL...")
-        conn = get_mysql_connection()
-        if conn:
-            close_mysql_connection(conn)  # Usando a nova função para fechar
+# Tipo personalizado para conexões
+DBConnection = Union[mysql.connector.MySQLConnection, cx_Oracle.Connection]
+
+def init_databases():
+    """Inicializa e testa todas as conexões com bancos de dados"""
+    init_mysql()
+    init_oracle()
+
+def init_mysql():
+    """Inicializa e testa a conexão com MySQL"""
+    global _mysql_initialized
+
+    if _mysql_initialized:
+        return
+
+    logger.info("🔧 Verificando conexão com MySQL...")
+
+    try:
+        connection = mysql.connector.connect(
+            **MYSQL_CONFIG, 
+            autocommit=False, 
+            connect_timeout=5
+        )
+
+        if connection.is_connected():
+            close_connection(connection)
             logger.info("✅ Conexão com MySQL estabelecida!")
-            _db_initialized = True
+            _mysql_initialized = True  # Definir como inicializado apenas se a conexão for bem-sucedida
         else:
             logger.error("❌ Falha na conexão com MySQL!")
-            raise RuntimeError("Não foi possível conectar ao banco de dados")
+            raise RuntimeError("Não foi possível conectar ao MySQL")
+
+    except mysql.connector.Error as e:
+        logger.error(f"Erro ao conectar ao MySQL: {str(e)}")
+        raise RuntimeError(f"Não foi possível conectar ao MySQL: {str(e)}")
+
+def init_oracle():
+    """Inicializa e testa a conexão com Oracle"""
+    global _oracle_initialized
+    
+    if _oracle_initialized:
+        return
+
+    logger.info("🔧 Verificando conexão com Oracle...")
+    conn = get_oracle_connection()
+    if conn:
+        close_connection(conn)
+        logger.info("✅ Conexão com Oracle estabelecida!")
+        _oracle_initialized = True
+    else:
+        logger.error("❌ Falha na conexão com Oracle!")
+        raise RuntimeError("Não foi possível conectar ao Oracle")
 
 def get_mysql_connection(max_retries: int = 3, retry_delay: int = 1) -> Optional[mysql.connector.MySQLConnection]:
-    """Estabelece conexão com o MySQL com retry automático
+    """Estabelece conexão com MySQL com retry automático"""
     
-    Args:
-        max_retries: Número máximo de tentativas
-        retry_delay: Tempo de espera entre tentativas (em segundos)
-        
-    Returns:
-        Objeto de conexão MySQL ou None se falhar
-    """
     for attempt in range(max_retries):
         try:
             connection = mysql.connector.connect(
                 **MYSQL_CONFIG, 
                 autocommit=False, 
-                connect_timeout=5,
-                pool_size=5
+                connect_timeout=5
             )
             if connection.is_connected():
-                logger.info(f"Conexão MySQL estabelecida (tentativa {attempt + 1}/{max_retries})")
+                logger.info(f"✅ Conexão MySQL estabelecida (tentativa {attempt + 1}/{max_retries})")
                 return connection
         except mysql.connector.Error as e:
-            logger.error(f"Tentativa {attempt + 1} falhou: {str(e)}")
+            logger.error(f"⚠️ Tentativa {attempt + 1} falhou: {str(e)}")
             if attempt == max_retries - 1:
-                logger.critical("Falha ao conectar ao MySQL após várias tentativas")
-                return None
+                logger.critical("❌ Falha ao conectar ao MySQL após várias tentativas")
+                raise RuntimeError(f"Erro crítico: não foi possível conectar ao MySQL após {max_retries} tentativas. Último erro: {str(e)}")
             time.sleep(retry_delay)
+    
     return None
 
-def close_mysql_connection(connection: Optional[mysql.connector.MySQLConnection]):
-    """Fecha uma conexão com o MySQL de forma segura
+def get_oracle_connection() -> Optional[cx_Oracle.Connection]:
+    """Estabelece conexão com Oracle Database"""
+    try:
+        connection = cx_Oracle.connect(
+            user=ORACLE_USER,
+            password=ORACLE_PASSWORD,
+            dsn=ORACLE_SERVICE_NAME
+        )
+        with connection.cursor() as cursor:
+            cursor.execute("ALTER SESSION SET CURRENT_SCHEMA = FOCCO3I")
+
+        logger.info("Conexão Oracle estabelecida")
+        return connection
+    except cx_Oracle.Error as e:
+        logger.error(f"Erro ao conectar ao Oracle: {str(e)}")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao conectar ao Oracle: {str(e)}")
     
-    Args:
-        connection: Objeto de conexão MySQL a ser fechado
-    """
-    if connection and connection.is_connected():
-        try:
+    return None
+
+def close_connection(connection: Optional[DBConnection]):
+    """Fecha uma conexão de banco de dados de forma segura"""
+    if not connection:
+        return
+    
+    try:
+        if isinstance(connection, mysql.connector.MySQLConnection) and connection.is_connected():
             connection.close()
             logger.debug("Conexão MySQL fechada com sucesso")
-        except mysql.connector.Error as e:
-            logger.error(f"Erro ao fechar conexão MySQL: {str(e)}")
+        elif isinstance(connection, cx_Oracle.Connection) and connection:
+            connection.close()
+            logger.debug("Conexão Oracle fechada com sucesso")
+    except cx_Oracle.DatabaseError as e:
+        logger.warning(f"Erro ao fechar conexão Oracle: {str(e)}")
+    except mysql.connector.Error as e:
+        logger.warning(f"Erro ao fechar conexão MySQL: {str(e)}")
+    except Exception as e:
+        logger.error(f"Erro inesperado ao fechar conexão: {str(e)}")
+
+# Teste as conexões se o arquivo for executado diretamente
+if __name__ == "__main__":
+    print("Testando conexões com bancos de dados...")
+    
+    # Teste MySQL
+    mysql_conn = get_mysql_connection()
+    if mysql_conn:
+        print("✅ Conexão MySQL OK")
+        close_connection(mysql_conn)
+    else:
+        print("❌ Falha na conexão MySQL")
+    
+    # Teste Oracle
+    oracle_conn = get_oracle_connection()
+    if oracle_conn:
+        print("✅ Conexão Oracle OK")
+        close_connection(oracle_conn)
+    else:
+        print("⚠️ Conexão Oracle não configurada ou falhou")
