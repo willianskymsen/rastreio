@@ -1,29 +1,29 @@
+from flask_apscheduler import APScheduler
 import logging
-import time
-import xml.etree.ElementTree as ET
-from datetime import datetime
-
 import mysql.connector
-import requests
-from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, jsonify, render_template, request
-
 from config import MYSQL_CONFIG
-app = Flask(__name__)
+from datetime import datetime
+import time
+import requests
+import xml.etree.ElementTree as ET
 
-# Configuração avançada do logger
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("app.log"), logging.StreamHandler()],
-)
+from rastro.rastro import buscar_e_processar_nfes
+
+# Initialize logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-scheduler = BackgroundScheduler()
-scheduler.start()
+# Initialize scheduler
+scheduler = APScheduler()
 
+# Agendando a tarefa para rodar a cada 5 minutos
+scheduler.add_job(
+    buscar_e_processar_nfes,
+    "interval",
+    minutes=5,
+    next_run_time=datetime.now(),  # Executa imediatamente ao iniciar
+)
 
-# Configuração do MySQL (usando as mesmas configurações do primeiro código)
 def get_mysql_connection(max_retries=3, retry_delay=1):
     """Estabelece conexão com o MySQL com retry automático"""
     for attempt in range(max_retries):
@@ -44,7 +44,6 @@ def get_mysql_connection(max_retries=3, retry_delay=1):
             time.sleep(retry_delay)
     return None
 
-
 def fetch_tracking_data(chave_nfe):
     """Faz a requisição à API e retorna os dados processados com base na chave da NF-e."""
     url = "https://ssw.inf.br/api/trackingdanfe"
@@ -58,8 +57,7 @@ def fetch_tracking_data(chave_nfe):
     except requests.exceptions.RequestException as e:
         logger.error(f"Erro na requisição à API: {e}")
         return None
-
-
+    
 def parse_xml(xml_data):
     """
     Processa o XML de rastreamento e retorna os dados formatados.
@@ -183,8 +181,7 @@ def parse_xml(xml_data):
             "mensagem": f"Erro inesperado: {str(e)}",
             "items": []
         }
-
-
+    
 def determinar_status(eventos):
     """Determina o status com base nos eventos da API"""
     if not eventos:
@@ -413,191 +410,3 @@ def buscar_e_processar_nfes():
     finally:
         if conn and conn.is_connected():
             conn.close()
-
-
-# Agendando a tarefa para rodar a cada 5 minutos
-scheduler.add_job(
-    buscar_e_processar_nfes,
-    "interval",
-    minutes=5,
-    next_run_time=datetime.now(),  # Executa imediatamente ao iniciar
-)
-
-
-@app.route("/")
-def index():
-    return render_template("index2.html")
-
-
-@app.route("/api/arquivos", methods=["GET"])
-def api_arquivos():
-    try:
-        # Obter parâmetro de filtro da query string
-        status_filter = request.args.get('status', '').upper()
-        
-        conn = get_mysql_connection()
-        if not conn:
-            return jsonify({"error": "Falha na conexão com o MySQL"}), 500
-
-        cursor = conn.cursor(dictionary=True)
-        
-        # Consulta base
-        query = """
-            SELECT 
-                NUM_NF,
-                status,
-                transportadora,
-                cidade,
-                uf
-            FROM nfe_status
-            WHERE NUM_NF IS NOT NULL
-            AND NUM_NF != ''
-        """
-        
-        # Adicionar filtro de status se fornecido
-        params = []
-        if status_filter in ['ENTREGUE', 'EM_TRANSITO']:
-            query += " AND status = %s"
-            params.append(status_filter)
-        elif status_filter:
-            # Se fornecido um filtro inválido, retornar vazio
-            return jsonify([])
-            
-        query += " ORDER BY updated_at DESC"
-        
-        cursor.execute(query, params)
-        nfes = cursor.fetchall()
-        conn.close()
-        
-        app.logger.info(f"NFs encontradas: {len(nfes)}")
-        
-        return jsonify(nfes)
-
-    except Exception as e:
-        logger.error(f"Erro ao buscar arquivos: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/dados", methods=["POST"])
-def api_dados():
-    conn = None
-    try:
-        num_nf = request.json.get("filename")
-        if not num_nf:
-            return jsonify({"error": "Número da NF não fornecido"}), 400
-
-        conn = get_mysql_connection()
-        if not conn:
-            return jsonify({"error": "Falha na conexão com o MySQL"}), 500
-
-        with conn.cursor(dictionary=True) as cursor:
-            # 1. Verifica se a NF existe e pertence a transportadora SSW
-            cursor.execute(
-                """
-                SELECT n.CHAVE_ACESSO_NFEL, n.NOME_TRP as transportadora, n.CIDADE, n.UF, n.DT_SAIDA
-                FROM nfe n
-                JOIN transportadoras t ON n.NOME_TRP = t.DESCRICAO
-                WHERE n.NUM_NF = %s 
-                AND t.SISTEMA = 'SSW'
-                LIMIT 1
-            """,
-                (num_nf,),
-            )
-
-            nfe = cursor.fetchone()
-            if not nfe:
-                return jsonify(
-                    {
-                        "error": "NF-e não encontrada ou não pertence a transportadora SSW",
-                        "details": f"NF-e {num_nf} não existe ou não é rastreável",
-                    }
-                ), 404
-
-            chave_nfe = nfe["CHAVE_ACESSO_NFEL"]
-            transportadora = nfe["transportadora"]
-            cidade = nfe["CIDADE"]
-            uf = nfe["UF"]
-            dt_saida = nfe["DT_SAIDA"]
-
-            # 2. Consulta a API SSW
-            dados_api = fetch_tracking_data(chave_nfe)
-            if not dados_api:
-                return jsonify(
-                    {
-                        "error": "Não foi possível obter dados de rastreamento",
-                        "details": "Falha ao consultar a API de rastreamento",
-                    }
-                ), 502
-
-            # 3. Processa a NF-e
-            success = processar_nfe(chave_nfe, num_nf, transportadora, cidade, uf, dt_saida)
-            if not success:
-                return jsonify(
-                    {
-                        "error": "Erro ao salvar dados no banco",
-                        "details": "Falha ao processar os dados de rastreamento",
-                    }
-                ), 500
-
-            return jsonify(dados_api)
-
-    except mysql.connector.Error as db_error:
-        logger.error(f"Erro de banco de dados: {db_error}")
-        if conn:
-            conn.rollback()
-        return jsonify(
-            {"error": "Erro ao processar no banco de dados", "details": str(db_error)}
-        ), 500
-    except Exception as e:
-        logger.error(f"Erro inesperado: {e}")
-        if conn:
-            conn.rollback()
-        return jsonify({"error": "Erro interno no servidor", "details": str(e)}), 500
-    finally:
-        if conn and conn.is_connected():
-            conn.close()
-
-@app.route("/api/status", methods=["GET"])
-def api_status():
-    try:
-        conn = get_mysql_connection()
-        if not conn:
-            return jsonify({"error": "Falha na conexão com o MySQL"}), 500
-
-        with conn.cursor(dictionary=True) as cursor:
-            # Filtra apenas os status relevantes
-            cursor.execute("""
-                SELECT 
-                    status,
-                    COUNT(*) as count
-                FROM nfe_status
-                WHERE status IN ('ENTREGUE', 'EM_TRANSITO')
-                GROUP BY status
-            """)
-
-            status_counts = cursor.fetchall()
-            
-            result = {
-                'ENTREGUE': 0,
-                'EM_TRANSITO': 0,
-                'TOTAL': 0
-            }
-            
-            for item in status_counts:
-                status = item['status']
-                if status in result:
-                    result[status] = item['count']
-                result['TOTAL'] += item['count']
-
-            return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Erro ao buscar status: {str(e)}")
-        return jsonify({"error": "Erro ao buscar status"}), 500
-    finally:
-        if conn and conn.is_connected():
-            conn.close()
-
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
