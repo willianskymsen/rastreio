@@ -39,14 +39,14 @@
           <i class="fas fa-map-marked-alt"></i>
           Rastreamento
         </button>
-        <button class="tab-btn" data-tab="reports">
-          <i class="fas fa-chart-line"></i>
-          Relatórios
-        </button>
         <button class="tab-btn" data-tab="settings">
           <i class="fas fa-cog"></i>
-          Configurações
+          Relatórios
         </button>
+        <a href="{{ url_for('transportadoras.gerenciamento') }}" class="tab-btn" data-tab="reports">
+          <i class="fas fa-chart-line"></i>
+          Configurações
+        </a>
       </div>
     </header>
 

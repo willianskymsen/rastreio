@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gerenciamento de Transportadoras - Sistemas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link
+      href="{{ url_for('transportadoras.static', filename='styles.css') }}"
+      rel="stylesheet"
+    />
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand">Transportadoras</a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('rastro.index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('transportadoras.gerenciar_opcoes') }}">Opções do Sistema</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="mb-3 d-flex justify-content-between align-items-center">
+            <h2>Gerenciamento de Transportadoras</h2>
+            <div>
+                <span id="contadorSelecionados" class="badge bg-primary me-2">0</span>
+                <button id="btnEditarMultiplo" class="btn btn-primary d-none" type="button">
+                    <i class="bi bi-pencil-square"></i> Editar Selecionados
+                </button>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-truck me-2"></i>Lista de Transportadoras
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="transportadorasTable" class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" id="selecionarTodos" class="form-check-input">
+                                </th>
+                                <th class="sortable">ID</th>
+                                <th class="sortable">Nome</th>
+                                <th class="sortable">CNPJ</th>
+                                <th class="sortable">Sistema</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="loading-row">
+                                <td colspan="6" class="text-center">
+                                    <div class="spinner-border text-primary d-none" role="status" id="loadingSpinner">
+                                        <span class="visually-hidden">Carregando...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="transportadora-row-template">
+        <tr>
+            <td><input type="checkbox" class="form-check-input transportadora-checkbox"></td>
+            <td class="transportadora-id"></td>
+            <td class="transportadora-nome"></td>
+            <td class="transportadora-cnpj"></td>
+            <td class="transportadora-sistema"></td>
+            <td><button class="btn btn-sm btn-primary btn-editar"><i class="bi bi-pencil"></i> Editar</button></td>
+        </tr>
+    </template>
+
+    <template id="empty-row-template">
+        <tr>
+            <td colspan="6" class="text-center"></td>
+        </tr>
+    </template>
+
+    <template id="error-row-template">
+        <tr>
+            <td colspan="6" class="text-center text-danger"></td>
+        </tr>
+    </template>
+
+    <template id="toast-template">
+        <div class="toast align-items-center text-white border-0 position-fixed bottom-0 end-0 m-3" role="alert">
+            <div class="d-flex">
+                <div class="toast-body"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Modals -->
+    <div class="modal fade" id="editarTransportadoraModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Sistema da Transportadora</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editarTransportadoraForm">
+                        <input type="hidden" id="editTransportadoraId" />
+                        <div class="mb-3">
+                            <label for="editSistema" class="form-label">Sistema</label>
+                            <select class="form-select" id="editSistema" required>
+                                <option value="">Selecione um sistema</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="salvarEdicaoBtn">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editarMultiploModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title modal-title-multiplo">Editar Sistema</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editSistemaMultiplo" class="form-label">Sistema</label>
+                        <select class="form-select" id="editSistemaMultiplo">
+                            <option value="">Selecione um sistema</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        Esta alteração será aplicada a <strong><span id="contadorModal">0</span></strong> transportadoras selecionadas.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="salvarEdicaoMultiploBtn">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações globais
+        const APP_CONFIG = {
+            urls: {
+                getTransportadoras: "{{ url_for('transportadoras.get_transportadoras') }}",
+                getOpcoesSistema: "{{ url_for('transportadoras.get_opcoes_sistema') }}",
+                atualizarSistema: "{{ url_for('transportadoras.atualizar_sistema') }}"
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('transportadoras.static', filename='transportadoras.js') }}"></script>
+</body>
+</html>

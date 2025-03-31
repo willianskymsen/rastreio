@@ -1,0 +1,76 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.card {
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  border-radius: 10px 10px 0 0 !important;
+}
+
+.table th {
+  font-weight: 600;
+}
+
+.btn-action {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.2rem;
+}
+
+.status-badge {
+  padding: 0.35em 0.65em;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+
+.badge-ativo {
+  background-color: #198754;
+}
+
+.badge-inativo {
+  background-color: #dc3545;
+}
+
+/* Ajustes para a tabela com checkboxes */
+#transportadorasTable th:first-child,
+#transportadorasTable td:first-child {
+  width: 40px;
+  text-align: center;
+}
+
+/* Espaçamento para o contador de selecionados */
+#contadorSelecionados {
+  font-size: 1rem;
+  padding: 0.5em 0.75em;
+}
+
+/* Ajuste para o spinner de carregamento */
+#loadingSpinner {
+  margin: 1rem auto;
+}
+
+th.sortable {
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+th.sortable:hover {
+  background-color: #f8f9fa;
+}
+.sort-icon {
+  margin-left: 5px;
+  font-size: 0.9rem;
+}
+th.sorted {
+  background-color: #f1f1f1;
+}

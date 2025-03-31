@@ -81,7 +81,7 @@ def api_dados():
                 FROM nfe n
                 JOIN transportadoras t ON n.NOME_TRP = t.DESCRICAO
                 WHERE n.NUM_NF = %s 
-                AND t.SISTEMA = 'SSW'
+                AND t.SISTEMA = '1'
                 LIMIT 1
             """,
                 (num_nf,),
