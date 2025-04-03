@@ -1,8 +1,9 @@
+# modules/tasks.py
 import logging
 from typing import Optional
 import mysql.connector
 from modules.database import get_mysql_connection, close_connection
-from modules.tracking import fetch_tracking_data
+from modules.tracking import fetchtracking_data
 from modules.status import determinar_status
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def processar_nfe(chave_nfe: str,
     conn = None
     try:
         # Tentativa de obter dados da API
-        dados_api = fetch_tracking_data(chave_nfe)
+        dados_api = fetchtracking_data(chave_nfe)
         conn = get_mysql_connection()
         if not conn:
             logger.error("Falha ao obter conexão com o banco de dados")
@@ -103,36 +104,17 @@ def processar_nfe(chave_nfe: str,
 def _insert_evento(cursor, chave_nfe, num_nf, evento, status, transportadora, cidade, uf):
     """Função auxiliar para inserir um evento no banco"""
     try:
-        # Prepara os dados para inserção
-        descricao_completa = f"{evento.get('ocorrencia', '')}"
-        if evento.get('codigo_ocorrencia'):
-            descricao_completa += f" ({evento['codigo_ocorrencia']})"
-        
         cursor.execute(
             """
             INSERT INTO nfe_logs 
-            (chave_nfe, NUM_NF, evento, data_hora, status, transportadora, cidade, uf,
-             codigo_ocorrencia, descricao_detalhada, tipo_ocorrencia, cidade_ocorrencia)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (chave_nfe, NUM_NF, evento, data_hora, status, transportadora, cidade, uf)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 evento = VALUES(evento),
-                status = VALUES(status),
-                descricao_detalhada = VALUES(descricao_detalhada),
-                tipo_ocorrencia = VALUES(tipo_ocorrencia)
+                status = VALUES(status)
             """,
-            (
-                chave_nfe, num_nf, 
-                descricao_completa,  
-                evento.get("data_hora"), 
-                status, 
-                transportadora, 
-                cidade, 
-                uf,
-                evento.get("codigo_ocorrencia", ""),  
-                evento.get("descricao", ""),          
-                evento.get("tipo", ""),               
-                evento.get("cidade", "")              
-            )
+            (chave_nfe, num_nf, evento["ocorrencia"], evento["data_hora"], 
+             status, transportadora, cidade, uf)
         )
     except mysql.connector.Error as e:
         logger.warning(f"Evento já existe para NF-e {num_nf}, atualizando dados: {str(e)}")
@@ -145,13 +127,6 @@ def _insert_default_status(cursor, chave_nfe, num_nf, transportadora, cidade, uf
         (chave_nfe, NUM_NF, ultimo_evento, data_hora, status, transportadora, cidade, uf)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """,
-        (
-            chave_nfe, num_nf, 
-            "CONSULTA_REALIZADA", 
-            dt_saida, 
-            "NAO_ENCONTRADO", 
-            transportadora, 
-            cidade, 
-            uf
-        )
+        (chave_nfe, num_nf, "CONSULTA_REALIZADA", dt_saida, 
+         "NAO_ENCONTRADO", transportadora, cidade, uf)
     )
