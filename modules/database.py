@@ -4,7 +4,7 @@ import logging
 import mysql.connector
 import cx_Oracle
 from typing import Optional, Union
-from config import MYSQL_CONFIG, ORACLE_PASSWORD, ORACLE_SERVICE_NAME, ORACLE_USER
+from .config import MYSQL_CONFIG, ORACLE_PASSWORD, ORACLE_TNS_ALIAS, ORACLE_USER
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def get_oracle_connection() -> Optional[cx_Oracle.Connection]:
         connection = cx_Oracle.connect(
             user=ORACLE_USER,
             password=ORACLE_PASSWORD,
-            dsn=ORACLE_SERVICE_NAME
+            dsn=ORACLE_TNS_ALIAS
         )
         with connection.cursor() as cursor:
             cursor.execute("ALTER SESSION SET CURRENT_SCHEMA = FOCCO3I")

@@ -859,3 +859,111 @@
 2025-03-31 16:42:40,839 - modules.database - INFO - ✅ Conexão MySQL estabelecida (tentativa 1/3)
 2025-03-31 16:42:40,844 - modules.tasks - INFO - NF-e 307685 processada com sucesso. Status: EM_TRANSITO
 2025-03-31 16:42:40,845 - werkzeug - INFO - 127.0.0.1 - - [31/Mar/2025 16:42:40] "POST /rastro/rastro/api/dados HTTP/1.1" 200 -
+2025-04-03 07:53:42,749 - modules.logger_config - INFO - Logger configurado com sucesso
+2025-04-03 07:53:42,750 - modules.database - INFO - 🔧 Verificando conexão com MySQL...
+2025-04-03 07:53:42,921 - modules.database - INFO - ✅ Conexão com MySQL estabelecida!
+2025-04-03 07:53:42,921 - modules.database - INFO - 🔧 Verificando conexão com Oracle...
+2025-04-03 07:53:43,159 - modules.database - INFO - Conexão Oracle estabelecida
+2025-04-03 07:53:43,160 - modules.database - INFO - ✅ Conexão com Oracle estabelecida!
+2025-04-03 07:53:43,161 - modules.tracking - INFO - Tracking module initialized with config: {'api_url': 'https://ssw.inf.br/api/trackingdanfe', 'timeout': 10}
+2025-04-03 07:53:43,161 - modules.status - INFO - Módulo de status inicializado
+2025-04-03 07:53:43,161 - modules.tasks - INFO - Módulo de tasks inicializado com configuração: {'max_retries': 3, 'default_status': 'EM_TRANSITO', 'log_all_events': True}
+2025-04-03 07:53:43,162 - modules.xml_parser - INFO - XML parser initialized with config: {'max_xml_log_length': 500, 'strict_parsing': False, 'default_status': 'SEM_EVENTOS'}
+2025-04-03 07:53:43,197 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.30.163:5000
+2025-04-03 07:53:43,198 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 07:53:43,200 - werkzeug - INFO -  * Restarting with stat
+2025-04-03 07:53:44,192 - modules.logger_config - INFO - Logger configurado com sucesso
+2025-04-03 07:53:44,193 - modules.database - INFO - 🔧 Verificando conexão com MySQL...
+2025-04-03 07:53:44,293 - modules.database - INFO - ✅ Conexão com MySQL estabelecida!
+2025-04-03 07:53:44,294 - modules.database - INFO - 🔧 Verificando conexão com Oracle...
+2025-04-03 07:53:44,475 - modules.database - INFO - Conexão Oracle estabelecida
+2025-04-03 07:53:44,477 - modules.database - INFO - ✅ Conexão com Oracle estabelecida!
+2025-04-03 07:53:44,477 - modules.tracking - INFO - Tracking module initialized with config: {'api_url': 'https://ssw.inf.br/api/trackingdanfe', 'timeout': 10}
+2025-04-03 07:53:44,478 - modules.status - INFO - Módulo de status inicializado
+2025-04-03 07:53:44,478 - modules.tasks - INFO - Módulo de tasks inicializado com configuração: {'max_retries': 3, 'default_status': 'EM_TRANSITO', 'log_all_events': True}
+2025-04-03 07:53:44,479 - modules.xml_parser - INFO - XML parser initialized with config: {'max_xml_log_length': 500, 'strict_parsing': False, 'default_status': 'SEM_EVENTOS'}
+2025-04-03 07:53:44,506 - werkzeug - WARNING -  * Debugger is active!
+2025-04-03 07:53:44,511 - werkzeug - INFO -  * Debugger PIN: 140-548-029
+2025-04-03 07:53:49,202 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:53:49] "GET /rastro/ HTTP/1.1" 200 -
+2025-04-03 07:53:49,335 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:53:49] "GET /rastro/static/styles.css HTTP/1.1" 200 -
+2025-04-03 07:53:49,365 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:53:49] "GET /rastro/static/script.js HTTP/1.1" 200 -
+2025-04-03 07:53:49,436 - modules.database - INFO - ✅ Conexão MySQL estabelecida (tentativa 1/3)
+2025-04-03 07:53:49,438 - modules.logger_config - ERROR - Erro ao buscar arquivos: 1054 (42S22): Unknown column 'updated_at' in 'order clause'
+2025-04-03 07:53:49,439 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:53:49] "[35m[1mGET /rastro/rastro/api/arquivos HTTP/1.1[0m" 500 -
+2025-04-03 07:53:49,544 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:53:49] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-04-03 07:57:50,958 - modules.logger_config - INFO - Logger configurado com sucesso
+2025-04-03 07:57:50,958 - modules.database - INFO - 🔧 Verificando conexão com MySQL...
+2025-04-03 07:57:51,076 - modules.database - INFO - ✅ Conexão com MySQL estabelecida!
+2025-04-03 07:57:51,076 - modules.database - INFO - 🔧 Verificando conexão com Oracle...
+2025-04-03 07:57:51,225 - modules.database - INFO - Conexão Oracle estabelecida
+2025-04-03 07:57:51,227 - modules.database - INFO - ✅ Conexão com Oracle estabelecida!
+2025-04-03 07:57:51,228 - modules.tracking - INFO - Tracking module initialized with config: {'api_url': 'https://ssw.inf.br/api/trackingdanfe', 'timeout': 10}
+2025-04-03 07:57:51,228 - modules.status - INFO - Módulo de status inicializado
+2025-04-03 07:57:51,229 - modules.tasks - INFO - Módulo de tasks inicializado com configuração: {'max_retries': 3, 'default_status': 'EM_TRANSITO', 'log_all_events': True}
+2025-04-03 07:57:51,229 - modules.xml_parser - INFO - XML parser initialized with config: {'max_xml_log_length': 500, 'strict_parsing': False, 'default_status': 'SEM_EVENTOS'}
+2025-04-03 07:57:51,268 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.30.163:5000
+2025-04-03 07:57:51,268 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-04-03 07:57:51,271 - werkzeug - INFO -  * Restarting with stat
+2025-04-03 07:57:52,276 - modules.logger_config - INFO - Logger configurado com sucesso
+2025-04-03 07:57:52,277 - modules.database - INFO - 🔧 Verificando conexão com MySQL...
+2025-04-03 07:57:52,371 - modules.database - INFO - ✅ Conexão com MySQL estabelecida!
+2025-04-03 07:57:52,372 - modules.database - INFO - 🔧 Verificando conexão com Oracle...
+2025-04-03 07:57:52,550 - modules.database - INFO - Conexão Oracle estabelecida
+2025-04-03 07:57:52,552 - modules.database - INFO - ✅ Conexão com Oracle estabelecida!
+2025-04-03 07:57:52,553 - modules.tracking - INFO - Tracking module initialized with config: {'api_url': 'https://ssw.inf.br/api/trackingdanfe', 'timeout': 10}
+2025-04-03 07:57:52,553 - modules.status - INFO - Módulo de status inicializado
+2025-04-03 07:57:52,554 - modules.tasks - INFO - Módulo de tasks inicializado com configuração: {'max_retries': 3, 'default_status': 'EM_TRANSITO', 'log_all_events': True}
+2025-04-03 07:57:52,554 - modules.xml_parser - INFO - XML parser initialized with config: {'max_xml_log_length': 500, 'strict_parsing': False, 'default_status': 'SEM_EVENTOS'}
+2025-04-03 07:57:52,576 - werkzeug - WARNING -  * Debugger is active!
+2025-04-03 07:57:52,581 - werkzeug - INFO -  * Debugger PIN: 140-548-029
+2025-04-03 07:58:00,125 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:58:00] "GET /rastro/ HTTP/1.1" 200 -
+2025-04-03 07:58:00,255 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:58:00] "GET /rastro/static/styles.css HTTP/1.1" 200 -
+2025-04-03 07:58:00,290 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:58:00] "GET /rastro/static/script.js HTTP/1.1" 200 -
+2025-04-03 07:58:00,338 - modules.database - INFO - ✅ Conexão MySQL estabelecida (tentativa 1/3)
+2025-04-03 07:58:00,350 - modules.logger_config - INFO - NFs encontradas: 1114
+2025-04-03 07:58:00,354 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:58:00] "GET /rastro/rastro/api/arquivos HTTP/1.1" 200 -
+2025-04-03 07:58:00,471 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 07:58:00] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-04-03 08:02:01,920 - werkzeug - INFO -  * Detected change in 'C:\\Users\\willian.cavalcante\\Documents\\rastreio\\app.py', reloading
+2025-04-03 08:02:01,998 - werkzeug - INFO -  * Restarting with stat
+2025-04-03 08:02:03,046 - modules.logger_config - INFO - Logger configurado com sucesso
+2025-04-03 08:02:03,046 - modules.database - INFO - 🔧 Verificando conexão com MySQL...
+2025-04-03 08:02:03,209 - modules.database - INFO - ✅ Conexão com MySQL estabelecida!
+2025-04-03 08:02:03,210 - modules.database - INFO - 🔧 Verificando conexão com Oracle...
+2025-04-03 08:02:03,373 - modules.database - INFO - Conexão Oracle estabelecida
+2025-04-03 08:02:03,375 - modules.database - INFO - ✅ Conexão com Oracle estabelecida!
+2025-04-03 08:02:03,376 - modules.tracking - INFO - Tracking module initialized with config: {'api_url': 'https://ssw.inf.br/api/trackingdanfe', 'timeout': 10}
+2025-04-03 08:02:03,377 - modules.status - INFO - Módulo de status inicializado
+2025-04-03 08:02:03,377 - modules.tasks - INFO - Módulo de tasks inicializado com configuração: {'max_retries': 3, 'default_status': 'EM_TRANSITO', 'log_all_events': True}
+2025-04-03 08:02:03,378 - modules.xml_parser - INFO - XML parser initialized with config: {'max_xml_log_length': 500, 'strict_parsing': False, 'default_status': 'SEM_EVENTOS'}
+2025-04-03 08:02:03,404 - werkzeug - WARNING -  * Debugger is active!
+2025-04-03 08:02:03,408 - werkzeug - INFO -  * Debugger PIN: 140-548-029
+2025-04-03 08:02:06,507 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:06] "GET /rastro/ HTTP/1.1" 200 -
+2025-04-03 08:02:06,646 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:06] "GET /rastro/static/styles.css HTTP/1.1" 200 -
+2025-04-03 08:02:06,670 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:06] "GET /rastro/static/script.js HTTP/1.1" 200 -
+2025-04-03 08:02:06,726 - modules.database - INFO - ✅ Conexão MySQL estabelecida (tentativa 1/3)
+2025-04-03 08:02:06,742 - modules.logger_config - INFO - NFs encontradas: 1114
+2025-04-03 08:02:06,746 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:06] "GET /rastro/rastro/api/arquivos HTTP/1.1" 200 -
+2025-04-03 08:02:06,843 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:06] "GET /favicon.ico HTTP/1.1" 200 -
+2025-04-03 08:02:43,144 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:43] "[33mGET /favicon.cio HTTP/1.1[0m" 404 -
+2025-04-03 08:02:46,999 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:46] "[36mGET /favicon.ico HTTP/1.1[0m" 304 -
+2025-04-03 08:02:51,087 - werkzeug - INFO - 127.0.0.1 - - [03/Apr/2025 08:02:51] "[36mGET /rastro/static/styles.css HTTP/1.1[0m" 304 -
+2025-04-03 08:06:59,363 - werkzeug - INFO -  * Detected change in 'C:\\Users\\willian.cavalcante\\Documents\\rastreio\\modules\\tasks.py', reloading
+2025-04-03 08:06:59,438 - werkzeug - INFO -  * Restarting with stat
+2025-04-03 08:07:00,804 - modules.logger_config - INFO - Logger configurado com sucesso
+2025-04-03 08:07:00,804 - modules.database - INFO - 🔧 Verificando conexão com MySQL...
+2025-04-03 08:07:01,002 - modules.database - INFO - ✅ Conexão com MySQL estabelecida!
+2025-04-03 08:07:01,003 - modules.database - INFO - 🔧 Verificando conexão com Oracle...
+2025-04-03 08:07:01,160 - modules.database - INFO - Conexão Oracle estabelecida
+2025-04-03 08:07:01,162 - modules.database - INFO - ✅ Conexão com Oracle estabelecida!
+2025-04-03 08:07:01,162 - modules.tracking - INFO - Tracking module initialized with config: {'api_url': 'https://ssw.inf.br/api/trackingdanfe', 'timeout': 10}
+2025-04-03 08:07:01,163 - modules.status - INFO - Módulo de status inicializado
+2025-04-03 08:07:01,163 - modules.tasks - INFO - Módulo de tasks inicializado com configuração: {'max_retries': 3, 'default_status': 'EM_TRANSITO', 'log_all_events': True}
+2025-04-03 08:07:01,163 - modules.xml_parser - INFO - XML parser initialized with config: {'max_xml_log_length': 500, 'strict_parsing': False, 'default_status': 'SEM_EVENTOS'}
+2025-04-03 08:07:01,191 - werkzeug - WARNING -  * Debugger is active!
+2025-04-03 08:07:01,198 - werkzeug - INFO -  * Debugger PIN: 140-548-029
