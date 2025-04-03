@@ -1,21 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Sistema avançado de rastreamento de documentos fiscais e cargas" />
   <title>Skymsen - Rastreamento</title>
-  
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" 
-      integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="{{ url_for('rastro.static', filename='styles.css') }}" />
-  
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.grastro.static.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 </head>
+
 <body>
   <div class="dashboard" role="application">
     <header class="dashboard-header" role="banner">
@@ -102,15 +104,8 @@
         </div>
         <div class="document-search">
           <label for="searchNfe" class="visually-hidden">Buscar NF-e</label>
-          <input 
-            type="search" 
-            id="searchNfe" 
-            name="searchNfe"
-            placeholder="Buscar NF-e ou transportadora..." 
-            aria-label="Pesquisar documentos fiscais"
-            autocomplete="off"
-            aria-describedby="search-hint"
-          />
+          <input type="search" id="searchNfe" name="searchNfe" placeholder="Buscar NF-e ou transportadora..."
+            aria-label="Pesquisar documentos fiscais" autocomplete="off" aria-describedby="search-hint" />
           <button class="search-btn">
             <i class="fas fa-search"></i>
           </button>
@@ -132,7 +127,7 @@
           <div class="tracking-header">
             <div class="tracking-title-container">
               <h3>
-                <i class="fas fa-barcode" aria-hidden="true"></i> 
+                <i class="fas fa-barcode" aria-hidden="true"></i>
                 NF-e <span class="nf-number" aria-label="Número da NF-e"></span>
               </h3>
               <div class="receiver-info">
@@ -141,18 +136,12 @@
               </div>
             </div>
             <span class="status-badge" aria-live="polite">
-              <i class="" aria-hidden="true"></i> 
+              <i class="" aria-hidden="true"></i>
               <span class="status-text"></span>
             </span>
           </div>
-          
+
           <div class="tracking-meta-grid">
-            <div class="meta-item">
-              <div class="meta-label">
-                <i class="fas fa-industry" aria-hidden="true"></i> Remetente
-              </div>
-              <div class="meta-value remetente" aria-label="Informações do remetente"></div>
-            </div>
             <div class="meta-item">
               <div class="meta-label">
                 <i class="fas fa-weight-hanging" aria-hidden="true"></i> Peso
@@ -166,19 +155,9 @@
               <div class="meta-value volumes" aria-label="Quantidade de volumes"></div>
             </div>
           </div>
-          
-        <div class="timeline-container" aria-label="Linha do tempo de eventos">
-          <div class="timeline-header">
-            <h4>
-              <i class="fas fa-history"></i>
-              Histórico de Eventos
-            </h4>
-            <button class="export-btn">
-              <i class="fas fa-file-export"></i>
-              Exportar
-            </button>
-          </div>
-          <!-- Eventos serão adicionados aqui -->
+
+          <div class="timeline-container" aria-label="Linha do tempo de eventos">
+          </div </div>
         </div>
       </template>
 
@@ -190,7 +169,7 @@
           <div class="event-card">
             <div class="event-header">
               <div class="event-date">
-                <i class="far fa-clock" aria-hidden="true"></i> 
+                <i class="far fa-clock" aria-hidden="true"></i>
                 <span class="event-time"></span>
               </div>
               <span class="event-type"></span>
@@ -217,11 +196,7 @@
             <button class="btn-action" title="Compartilhar">
               <i class="fas fa-share-alt"></i>
             </button>
-            <button 
-              class="btn-refresh" 
-              aria-label="Atualizar dados" 
-              title="Atualizar informações de rastreamento"
-            >
+            <button class="btn-refresh" aria-label="Atualizar dados" title="Atualizar informações de rastreamento">
               <i class="fas fa-sync-alt" aria-hidden="true"></i>
             </button>
           </div>
@@ -237,7 +212,7 @@
         </div>
       </section>
     </main>
-    
+
     <footer class="dashboard-footer">
       <div class="footer-content">
         <div class="footer-brand">
@@ -256,6 +231,17 @@
     </footer>
   </div>
 
+  <script>
+    // Configurações globais para o módulo de rastro
+    const RASTRO_CONFIG = {
+      urls: {
+        getArquivos: "{{ url_for('rastro.api_arquivos') }}",
+        getDados: "{{ url_for('rastro.api_dados') }}",
+        getStatus: "{{ url_for('rastro.api_status') }}"
+      }
+    };
+  </script>
   <script src="{{ url_for('rastro.static', filename='script.js') }}" defer></script>
 </body>
+
 </html>

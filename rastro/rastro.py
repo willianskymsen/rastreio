@@ -1,8 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from modules.database import get_mysql_connection
-from modules.tracking import fetch_tracking_data
 from modules.logger_config import logger
-from modules.tasks import processar_nfe
 import mysql.connector
 
 rastro_blueprint = Blueprint('rastro', __name__, template_folder='templates', static_folder='static')
@@ -73,69 +71,66 @@ def api_dados():
         if not conn:
             return jsonify({"error": "Falha na conexão com o MySQL"}), 500
 
-        with conn.cursor(dictionary=True) as cursor:
-            # 1. Verifica se a NF existe e pertence a transportadora SSW
-            cursor.execute(
+        response_data = {}
+
+        # Buscar histórico de rastreamento da tabela nfe_logs
+        with conn.cursor(dictionary=True) as cursor_logs:
+            cursor_logs.execute(
                 """
-                SELECT n.CHAVE_ACESSO_NFEL, n.NOME_TRP as transportadora, n.CIDADE, n.UF, n.DT_SAIDA
-                FROM nfe n
-                JOIN transportadoras t ON n.NOME_TRP = t.DESCRICAO
-                WHERE n.NUM_NF = %s 
-                AND t.SISTEMA = '1'
+                SELECT
+                    codigo_ocorrencia,
+                    tipo_ocorrencia,
+                    descricao_completa,
+                    data_hora,
+                    status,
+                    cidade_ocorrencia,
+                    uf,
+                    dominio,
+                    filial,
+                    nome_recebedor,
+                    documento_recebedor
+                FROM nfe_logs
+                WHERE NUM_NF = %s
+                ORDER BY data_hora DESC
+            """,
+                (num_nf,),
+            )
+            response_data['historico_rastreamento'] = cursor_logs.fetchall()
+
+        # Buscar informações adicionais da tabela nfe
+        with conn.cursor(dictionary=True) as cursor_nfe:
+            cursor_nfe.execute(
+                """
+                SELECT NOME, PESO_BRT, QTD_VOLUMES
+                FROM nfe
+                WHERE NUM_NF = %s
                 LIMIT 1
             """,
                 (num_nf,),
             )
+            nfe_info = cursor_nfe.fetchone()
+            if nfe_info:
+                response_data['destinatario'] = nfe_info.get('NOME')
+                response_data['peso'] = nfe_info.get('PESO_BRT')
+                response_data['volumes'] = nfe_info.get('QTD_VOLUMES')
 
-            nfe = cursor.fetchone()
-            if not nfe:
-                return jsonify(
-                    {
-                        "error": "NF-e não encontrada ou não pertence a transportadora SSW",
-                        "details": f"NF-e {num_nf} não existe ou não é rastreável",
-                    }
-                ), 404
+        conn.close()
 
-            chave_nfe = nfe["CHAVE_ACESSO_NFEL"]
-            transportadora = nfe["transportadora"]
-            cidade = nfe["CIDADE"]
-            uf = nfe["UF"]
-            dt_saida = nfe["DT_SAIDA"]
-
-            # 2. Consulta a API SSW
-            dados_api = fetch_tracking_data(chave_nfe)
-            if not dados_api:
-                return jsonify(
-                    {
-                        "error": "Não foi possível obter dados de rastreamento",
-                        "details": "Falha ao consultar a API de rastreamento",
-                    }
-                ), 502
-
-            # 3. Processa a NF-e
-            success = processar_nfe(chave_nfe, num_nf, transportadora, cidade, uf, dt_saida)
-            if not success:
-                return jsonify(
-                    {
-                        "error": "Erro ao salvar dados no banco",
-                        "details": "Falha ao processar os dados de rastreamento",
-                    }
-                ), 500
-
-            return jsonify(dados_api)
+        logger.info(f"Dados de rastreamento e informações da NF {num_nf} buscados com sucesso.")
+        return jsonify(response_data)
 
     except mysql.connector.Error as db_error:
-        logger.error(f"Erro de banco de dados: {db_error}")
+        logger.error(f"Erro de banco de dados ao buscar dados: {db_error}")
         if conn:
             conn.rollback()
         return jsonify(
-            {"error": "Erro ao processar no banco de dados", "details": str(db_error)}
+            {"error": "Erro ao buscar dados no banco de dados", "details": str(db_error)}
         ), 500
     except Exception as e:
-        logger.error(f"Erro inesperado: {e}")
+        logger.error(f"Erro inesperado ao buscar dados: {e}")
         if conn:
             conn.rollback()
-        return jsonify({"error": "Erro interno no servidor", "details": str(e)}), 500
+        return jsonify({"error": "Erro interno ao buscar dados", "details": str(e)}), 500
     finally:
         if conn and conn.is_connected():
             conn.close()

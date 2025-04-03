@@ -2,29 +2,29 @@
 // CONSTANTES E CONFIGURAÇÕES
 // ==============================================
 const STATUS_CONFIG = {
-  ENTREGUE: { 
-    icon: 'fa-check-circle', 
-    color: '#2ecc71', 
-    title: 'Entregues', 
-    order: 1 
+  ENTREGUE: {
+    icon: 'fa-check-circle',
+    color: '#2ecc71',
+    title: 'Entregues',
+    order: 1
   },
-  EM_TRANSITO: { 
-    icon: 'fa-truck', 
-    color: '#3498db', 
-    title: 'Em Trânsito', 
-    order: 2 
+  EM_TRANSITO: {
+    icon: 'fa-truck',
+    color: '#3498db',
+    title: 'Em Trânsito',
+    order: 2
   },
-  PROBLEMA: { 
-    icon: 'fa-exclamation-triangle', 
-    color: '#e74c3c', 
-    title: 'Com Problema', 
-    order: 3 
+  PROBLEMA: {
+    icon: 'fa-exclamation-triangle',
+    color: '#e74c3c',
+    title: 'Com Problema',
+    order: 3
   },
-  TOTAL: { 
-    icon: 'fa-list-alt', 
-    color: '#95a5a6', 
-    title: 'Total', 
-    order: 4 
+  TOTAL: {
+    icon: 'fa-list-alt',
+    color: '#95a5a6',
+    title: 'Total',
+    order: 4
   }
 };
 
@@ -60,20 +60,20 @@ const STATUS_INFO = {
  */
 async function carregarArquivos() {
   try {
-    const response = await fetch("/rastro/rastro/api/arquivos");
+    const response = await fetch(RASTRO_CONFIG.urls.getArquivos);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const data = await response.json();
     if (!data || data.length === 0) {
       mostrarMensagemSemDados();
       return;
     }
-    
+
     const statusData = calcularStatusData(data);
     renderizarArquivos(data, statusData);
-    
+
   } catch (error) {
     console.error("Erro ao carregar arquivos:", error);
     mostrarErroCarregamento(error);
@@ -101,7 +101,7 @@ async function buscarDados(numNf) {
   const minLoadTime = 800;
 
   try {
-    const response = await fetch("/rastro/rastro/api/dados", {
+    const response = await fetch(RASTRO_CONFIG.urls.getDados, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename: numNf })
@@ -133,6 +133,23 @@ async function buscarDados(numNf) {
   }
 }
 
+/**
+ * Carrega os status para os cards iniciais
+ */
+async function carregarStatusCardsIniciais() {
+  try {
+    const response = await fetch(RASTRO_CONFIG.urls.getStatus);
+    if (!response.ok) {
+      console.error("Erro ao carregar status:", response);
+      return;
+    }
+    const data = await response.json();
+    renderizarStatusCards(data);
+  } catch (error) {
+    console.error("Erro ao carregar status:", error);
+  }
+}
+
 // ==============================================
 // FUNÇÕES DE RENDERIZAÇÃO (ATUALIZADAS)
 // ==============================================
@@ -149,16 +166,16 @@ function renderizarStatusCards(statusData) {
     .forEach(([status, config]) => {
       const template = document.getElementById("statusCardTemplate").content.cloneNode(true);
       const card = template.querySelector('.status-card');
-      
+
       card.dataset.status = status;
-      
+
       const iconElement = card.querySelector('.status-card-icon');
       iconElement.style.color = config.color;
       iconElement.querySelector('i').className = `fas ${config.icon}`;
-      
+
       card.querySelector('.status-card-title').textContent = config.title;
       card.querySelector('.status-card-count').textContent = statusData[status] || 0;
-      
+
       container.appendChild(template);
     });
 }
@@ -179,17 +196,17 @@ function renderizarListaArquivos(files) {
   files.forEach(file => {
     const template = document.getElementById("fileItemTemplate").content.cloneNode(true);
     const item = template.querySelector('.file-item');
-    
+
     item.dataset.status = file.status || '';
     item.querySelector('.file-num').textContent = file.NUM_NF;
-    
+
     const statusElement = item.querySelector('.file-status');
-    const statusText = file.status === 'EM_TRANSITO' ? 'Em trânsito' : 
-                      file.status === 'ENTREGUE' ? 'Entregue' : 
-                      file.status === 'PROBLEMA' ? 'Problema' : 
-                      file.status || 'Sem status';
+    const statusText = file.status === 'EM_TRANSITO' ? 'Em trânsito' :
+      file.status === 'ENTREGUE' ? 'Entregue' :
+      file.status === 'PROBLEMA' ? 'Problema' :
+      file.status || 'Sem status';
     statusElement.textContent = statusText;
-    
+
     if (file.status) {
       statusElement.className = `file-status status-${file.status.toLowerCase().replace('_', '')}`;
     }
@@ -205,10 +222,10 @@ function renderizarListaArquivos(files) {
     } else {
       fileIcon.className = 'fas fa-file-invoice'; // Padrão para documentos sem status específico
     }
-    
+
     item.querySelector('.transportadora').textContent = file.transportadora || 'Transportadora não informada';
     item.querySelector('.local').textContent = `${file.cidade || 'Local desconhecido'}${file.uf ? '/' + file.uf : ''}`;
-    
+
     filesList.appendChild(template);
   });
 }
@@ -218,50 +235,41 @@ function renderizarListaArquivos(files) {
  */
 function renderizarDados(data, numNf) {
   const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = ''; // Limpa o conteúdo anterior
+
   const template = document.getElementById("trackingTemplate").content.cloneNode(true);
-  
-  // Preencher dados básicos
-  template.querySelector('.nf-number').textContent = numNf;
-  template.querySelector('.remetente').textContent = data.dados?.remetente || "--";
-  template.querySelector('.destinatario').textContent = data.dados?.destinatario || "--";
-  
-  // Preencher status
-  const statusInfo = STATUS_INFO[data.status_entrega] || {
-    text: "Em processamento",
-    icon: "fas fa-clock",
-    class: "status-processing"
-  };
-  
-  const statusBadge = template.querySelector('.status-badge');
-  statusBadge.className = `status-badge ${statusInfo.class}`;
-  statusBadge.querySelector('i').className = statusInfo.icon;
-  statusBadge.querySelector('.status-text').textContent = statusInfo.text;
-  
-  // Adicionar metadados adicionais
-  const { primeiroEvento, eventoEntrega, tempoTransporte } = calcularTemposTransporte(data.dados?.items || []);
-  
-  const metaGrid = template.querySelector('.tracking-meta-grid');
-  if (primeiroEvento) {
-    metaGrid.appendChild(criarMetaItem("Primeiro evento", formatarDataHora(primeiroEvento.data_hora), "fa-flag"));
+  template.querySelector('.nf-number').textContent = numNf; // Mantém o número da NF
+
+  // Preencher informações do destinatário, peso e volumes
+  template.querySelector('.destinatario').textContent = data.destinatario || "--";
+  template.querySelector('.peso').textContent = data.peso || "--";
+  template.querySelector('.volumes').textContent = data.volumes || "--";
+
+  const timelineContainer = template.querySelector('.timeline-container');
+  timelineContainer.innerHTML = ''; // Limpa os eventos da timeline existentes
+
+  if (data.historico_rastreamento && data.historico_rastreamento.length > 0) {
+    data.historico_rastreamento.sort((a, b) => new Date(b.data_hora) - new Date(a.data_hora)) // Ordena por data/hora decrescente
+      .forEach(item => {
+        // Mapeia os campos do objeto nfe_logs para o formato esperado por adicionarEventoTimeline
+        const evento = {
+          data_hora: item.data_hora,
+          tipo: item.tipo_ocorrencia,
+          ocorrencia: item.descricao_completa,
+          descricao: null, // A descrição completa já está na ocorrencia
+          cidade: item.cidade_ocorrencia,
+          filial: item.filial,
+          dominio: item.dominio,
+          nome_recebedor: item.nome_recebedor,
+          nro_doc_recebedor: item.documento_recebedor
+        };
+        adicionarEventoTimeline(timelineContainer, evento);
+      });
+  } else {
+    timelineContainer.innerHTML = '<p>Nenhum evento de rastreamento encontrado para esta NF-e.</p>';
   }
-  if (eventoEntrega) {
-    metaGrid.appendChild(criarMetaItem("Entrega", formatarDataHora(eventoEntrega.data_hora), "fa-check-circle"));
-  }
-  if (tempoTransporte !== null) {
-    metaGrid.appendChild(criarMetaItem("Tempo transporte", `${tempoTransporte} dia(s)`, "fa-clock"));
-  }
-  
-  // Limpar e preencher resultDiv
-  resultDiv.innerHTML = '';
+
   resultDiv.appendChild(template);
-  
-  // Adicionar eventos à timeline
-  if (data.dados?.items?.length) {
-    const timelineContainer = resultDiv.querySelector('.timeline-container');
-    data.dados.items
-      .sort((a, b) => new Date(b.data_hora) - new Date(a.data_hora))
-      .forEach(item => adicionarEventoTimeline(timelineContainer, item));
-  }
 }
 
 /**
@@ -283,7 +291,7 @@ function criarMetaItem(label, value, icon) {
 function adicionarEventoTimeline(container, item) {
   const template = document.getElementById("eventItemTemplate").content.cloneNode(true);
   const event = template.querySelector('.timeline-event');
-  
+
   // Configurar classe do evento com base no tipo
   const eventClass = determinarClasseEvento(item);
   event.classList.add(eventClass);
@@ -304,15 +312,15 @@ function adicionarEventoTimeline(container, item) {
     eventMarker.className = 'fas fa-truck-moving';
   } else {
     eventMarker.className = 'fas fa-truck'; // Default para outros eventos
-  } 
-  
+  }
+
   // Preencher dados do evento
   event.querySelector('.event-time').textContent = formatarDataHora(item.data_hora);
   if (item.tipo) {
     event.querySelector('.event-type').textContent = item.tipo.toUpperCase();
   }
   event.querySelector('.event-title').textContent = item.ocorrencia;
-  
+
   // Adicionar descrição se existir
   if (item.descricao) {
     const desc = document.createElement('p');
@@ -320,24 +328,24 @@ function adicionarEventoTimeline(container, item) {
     desc.textContent = item.descricao;
     event.querySelector('.event-content').appendChild(desc);
   }
-  
+
   // Adicionar detalhes dinâmicos
   const detailsContainer = event.querySelector('.event-details');
-  
+
   if (item.cidade) {
-    detailsContainer.appendChild(criarDetailItem('map-marker-alt', 
+    detailsContainer.appendChild(criarDetailItem('map-marker-alt',
       `${item.cidade}${item.filial ? ` (${item.filial})` : ''}`));
   }
-  
+
   if (item.dominio) {
     detailsContainer.appendChild(criarDetailItem('truck', item.dominio));
   }
-  
+
   if (item.nome_recebedor) {
     const text = `Recebido por: ${item.nome_recebedor}${item.nro_doc_recebedor ? ` (${item.nro_doc_recebedor})` : ''}`;
     detailsContainer.appendChild(criarDetailItem('user', text));
   }
-  
+
   container.appendChild(template);
 }
 
@@ -403,24 +411,24 @@ function mostrarErroCarregamento(error) {
 function calcularStatusData(files) {
   const entregue = files.filter(item => item.status === 'ENTREGUE').length;
   const emTransito = files.filter(item => item.status === 'EM_TRANSITO').length;
-  
+
   return {
     ENTREGUE: entregue,
     EM_TRANSITO: emTransito,
-    TOTAL: entregue + emTransito  // Só soma ENTREGUE + EM_TRANSITO
+    TOTAL: entregue + emTransito   // Só soma ENTREGUE + EM_TRANSITO
   };
 }
 
 function calcularTemposTransporte(items) {
   const primeiroEvento = items[items.length - 1];
   const eventoEntrega = items.find(e => e.ocorrencia.toLowerCase().includes("entregue"));
-  
+
   let tempoTransporte = null;
   if (primeiroEvento?.data_hora && eventoEntrega?.data_hora) {
     const diffMs = new Date(eventoEntrega.data_hora) - new Date(primeiroEvento.data_hora);
     tempoTransporte = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   }
-  
+
   return { primeiroEvento, eventoEntrega, tempoTransporte };
 }
 
@@ -442,7 +450,7 @@ function formatarDataHora(dataHora) {
 function determinarClasseEvento(item) {
   if (!item?.ocorrencia) return "event-transito";
   const oc = item.ocorrencia.toLowerCase();
-  
+
   if (oc.includes("entregue") || oc.includes("entrega realizada")) return "event-entregue";
   if (oc.includes("problema") || oc.includes("devol") || oc.includes("recusa") || oc.includes("cancelado")) return "event-problema";
   if (oc.includes("emissão") || oc.includes("emitido")) return "event-emissao";
@@ -451,7 +459,7 @@ function determinarClasseEvento(item) {
   if (oc.includes("saída") || oc.includes("saiu")) return "event-saida";
   if (oc.includes("alfândega") || oc.includes("fiscal")) return "event-customs";
   if (oc.includes("inspeção") || oc.includes("vistoria")) return "event-inspecao";
-  
+
   return "event-transito";
 }
 
@@ -469,15 +477,15 @@ function configurarEventosCardsStatus() {
   document.addEventListener('click', function(e) {
     const card = e.target.closest('.status-card');
     if (!card) return;
-    
+
     document.querySelectorAll('.status-card').forEach(c => {
       c.classList.remove('active');
       c.setAttribute('aria-current', 'false');
     });
-    
+
     card.classList.add('active');
     card.setAttribute('aria-current', 'true');
-    
+
     const status = card.getAttribute('data-status');
     const searchTerm = document.getElementById('searchNfe').value.toLowerCase();
     filtrarArquivos(window.currentFiles, searchTerm, status === 'TOTAL' ? '' : status);
@@ -488,12 +496,12 @@ function configurarEventosItensArquivo() {
   document.addEventListener('click', function(e) {
     const item = e.target.closest('.file-item');
     if (!item) return;
-    
+
     document.querySelectorAll('.file-item').forEach(i => {
       i.classList.remove('active');
       i.setAttribute('aria-selected', 'false');
     });
-    
+
     item.classList.add('active');
     item.setAttribute('aria-selected', 'true');
     buscarDados(item.querySelector('.file-num').textContent);
@@ -509,21 +517,21 @@ function configurarInputBusca() {
 }
 
 function filtrarArquivos(files, searchTerm = "", status = "") {
-  const filtered = files.filter(file => 
-    (String(file.NUM_NF).toLowerCase().includes(searchTerm.toLowerCase()) || 
-     String(file.transportadora || "").toLowerCase().includes(searchTerm.toLowerCase())) &&
+  const filtered = files.filter(file =>
+    (String(file.NUM_NF).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(file.transportadora || "").toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!status || (file.status || "").toUpperCase() === status)
   );
 
   const filesList = document.getElementById("fileList");
-  filesList.innerHTML = filtered.length > 0 
+  filesList.innerHTML = filtered.length > 0
     ? filtered.map(file => {
         const template = document.getElementById("fileItemTemplate").content.cloneNode(true);
         const item = template.querySelector('.file-item');
-        const statusText = file.status === 'EM_TRANSITO' ? 'Em trânsito' : 
-                          file.status === 'ENTREGUE' ? 'Entregue' : 
-                          file.status === 'PROBLEMA' ? 'Problema' : 
-                          file.status || 'Sem status';
+        const statusText = file.status === 'EM_TRANSITO' ? 'Em trânsito' :
+          file.status === 'ENTREGUE' ? 'Entregue' :
+          file.status === 'PROBLEMA' ? 'Problema' :
+          file.status || 'Sem status';
         item.dataset.status = file.status || '';
         item.querySelector('.file-num').textContent = file.NUM_NF;
         item.querySelector('.file-status').textContent = statusText;
@@ -541,8 +549,8 @@ function filtrarArquivos(files, searchTerm = "", status = "") {
 // ==============================================
 
 function selecionarItensPadrao() {
-  const emTransitoCard = document.querySelector('.status-card[data-status="EM_TRANSITO"]') || 
-                        document.querySelector('.status-card');
+  const emTransitoCard = document.querySelector('.status-card[data-status="EM_TRANSITO"]') ||
+    document.querySelector('.status-card');
   if (emTransitoCard) emTransitoCard.click();
 
   const firstFileItem = document.querySelector('.file-item');
@@ -551,4 +559,5 @@ function selecionarItensPadrao() {
 
 document.addEventListener("DOMContentLoaded", function() {
   carregarArquivos();
+  carregarStatusCardsIniciais(); // Carrega os status iniciais
 });

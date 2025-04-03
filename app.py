@@ -2,8 +2,7 @@ from flask import Flask, send_from_directory
 from rastro.rastro import rastro_blueprint
 from modules.module_initializer import initialize_modules
 from transportadoras.transportadoras import transportadoras_blueprint
-from modules.tasks import check_and_process_nfes, run_scheduled_tasks # Importe as funções necessárias
-import threading
+from modules.tasks import init_tasks, start_background_process
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,17 +26,10 @@ if __name__ == "__main__":
     initialize_modules()
     logger.info("Módulos inicializados.")
 
-    # Execute a verificação inicial de NF-es pendentes
-    logger.info("Executando verificação inicial de NF-es pendentes...")
-    check_and_process_nfes()
-    logger.info("Verificação inicial de NF-es pendentes concluída.")
+    # Inicializar as tasks
+    init_tasks()
 
-    # Inicie a rotina de tarefas agendadas em um thread separado
-    def run_tasks_in_background():
-        run_scheduled_tasks()
-
-    task_thread = threading.Thread(target=run_tasks_in_background, daemon=True)
-    task_thread.start()
-    logger.info("Rotina de tarefas agendadas iniciada em background.")
+    # Iniciar o processo de agendamento em background
+    start_background_process()
 
     app.run(host="0.0.0.0", port=5000, debug=True)
