@@ -1,6 +1,5 @@
-# modules/module_initializer.py
 import logging
-from .database import init_databases
+from .database import init_databases, get_mysql_connection  # Importe get_mysql_connection
 from .tasks import init_tasks
 from .json_parser import init_json_parser
 from .status import init_status
@@ -22,8 +21,14 @@ def initialize_modules():
     init_json_parser()
     logger.info("JSON Parser module initialized.")
 
-    init_status()
-    logger.info("Status module initialized.")
+    # Inicialize o módulo de status passando a conexão com o banco de dados
+    conn = get_mysql_connection()
+    if conn:
+        init_status(conn)
+        conn.close()
+        logger.info("Status module initialized with database connection.")
+    else:
+        logger.error("Failed to get database connection to initialize status module.")
 
     init_logger()  # Chama a função init_logger do nfe_tracking_logger
     logger.info("Logger module initialized.")

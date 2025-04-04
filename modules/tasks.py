@@ -1,3 +1,4 @@
+# modules/tasks.py
 import logging
 from typing import Optional
 import mysql.connector
@@ -5,8 +6,8 @@ from datetime import datetime, timedelta
 from multiprocessing import Process
 from modules.database import get_mysql_connection, close_connection
 from modules.tracking import fetch_tracking_data
-from modules.status import determinar_status
-from modules.nfe_tracking_logger import insert_evento, insert_default_status
+from modules.status import determinar_status, init_status  # Import init_status
+from modules import nfe_tracking_logger  # Import the logger module
 import time
 import schedule
 
@@ -33,7 +34,10 @@ def init_tasks(max_retries: Optional[int] = None,
 def processar_nfe(cursor, chave_nfe: str, num_nf: str, transportadora: str, cidade: str, uf: str, dt_saida: str) -> bool:
     """
     Processa NF-e alimentando as tabelas do banco de dados.
+    Na primeira consulta bem-sucedida, salva todos os eventos.
+    Em consultas subsequentes, ignora se o status for ENTREGUE.
     """
+    conn = None
     try:
         dados_api = fetch_tracking_data(chave_nfe)
 
@@ -44,46 +48,67 @@ def processar_nfe(cursor, chave_nfe: str, num_nf: str, transportadora: str, cida
                 SET status = 'NAO_ENCONTRADO', updated_at = NOW()
                 WHERE chave_nfe = %s
             """, (chave_nfe,))
-            _update_last_processed(cursor, chave_nfe)
+            nfe_tracking_logger._update_last_processed(cursor, chave_nfe)
             return True
 
         items = dados_api["dados"]["items"]
-        status = determinar_status(items)
-        ultimo_codigo_ocorrencia = dados_api.get("ultimo_codigo_ocorrencia")
+        ultimo_evento_api = items[-1] if items else None
+        codigo_ocorrencia = ultimo_evento_api.get("codigo_ocorrencia") if ultimo_evento_api else None
+        tipo_ocorrencia = ultimo_evento_api.get("ocorrencia", "").strip() if ultimo_evento_api else None
 
-        if _config['log_all_events']:
-            for evento in items:
-                insert_evento(cursor, chave_nfe, num_nf, evento, status, transportadora, cidade, uf)
+        conn = get_mysql_connection()
+        if not conn:
+            logger.error("Falha ao obter conexão com o banco de dados para determinar o status.")
+            status = _config['default_status']
         else:
-            insert_evento(cursor, chave_nfe, num_nf, items[-1], status, transportadora, cidade, uf)
+            init_status(conn)  # Ensure status module is initialized
+            status = determinar_status(conn, codigo_ocorrencia)
+            close_connection(conn)
+            conn = None # Ensure conn is reset after closing
 
-        _update_nfe_status(cursor, chave_nfe, status, ultimo_codigo_ocorrencia)
-        logger.info(f"NF-e {num_nf} processada com sucesso. Status: {status}, Último Evento: {ultimo_codigo_ocorrencia}")
+        ultimo_codigo_ocorrencia_api = dados_api.get("ultimo_codigo_ocorrencia")
+        ultimo_codigo_ocorrencia_salvar = ultimo_codigo_ocorrencia_api
+
+        logger.info(f"NF-e {num_nf}: Último código de ocorrência da API: {ultimo_codigo_ocorrencia_api}")
+
+        if ultimo_codigo_ocorrencia_api == '01':
+            ultimo_codigo_ocorrencia_salvar = '01'
+            logger.info(f"NF-e {num_nf}: Forçando último código de ocorrência para '01'.")
+
+        # Check if events have been logged before
+        cursor.execute("SELECT COUNT(*) FROM nfe_logs WHERE chave_nfe = %s", (chave_nfe,))
+        eventos_ja_logados = cursor.fetchone()[0]
+
+        if not eventos_ja_logados:
+            # First time logging events
+            logger.info(f"NF-e {num_nf}: Primeira consulta bem-sucedida. Logando todos os eventos.")
+            for evento in items:
+                nfe_tracking_logger.insert_evento(cursor, chave_nfe, num_nf, evento, status, transportadora, cidade, uf)
+        else:
+            # Subsequent checks
+            if status == 'ENTREGUE':
+                logger.info(f"NF-e {num_nf}: Status ENTREGUE em consulta subsequente. Ignorando eventos.")
+                # We still need to update the nfe_status to ENTREGUE if it's not already
+                cursor.execute("SELECT status FROM nfe_status WHERE chave_nfe = %s", (chave_nfe,))
+                current_status = cursor.fetchone()[0]
+                if current_status != 'ENTREGUE':
+                    nfe_tracking_logger._update_nfe_status(cursor, chave_nfe, status, ultimo_codigo_ocorrencia_salvar, tipo_ocorrencia)
+                    logger.info(f"NF-e {num_nf}: Atualizando status para ENTREGUE.")
+                return True # Return True to indicate processing was done (status updated)
+            else:
+                logger.info(f"NF-e {num_nf}: Consulta subsequente. Logando apenas o último evento.")
+                nfe_tracking_logger.insert_evento(cursor, chave_nfe, num_nf, items[-1], status, transportadora, cidade, uf)
+
+        nfe_tracking_logger._update_nfe_status(cursor, chave_nfe, status, ultimo_codigo_ocorrencia_salvar, tipo_ocorrencia)
+        logger.info(f"NF-e {num_nf} processada com sucesso. Status: {status}, Último Evento: {ultimo_codigo_ocorrencia_salvar}")
         return True
 
     except Exception as e:
         logger.error(f"Erro ao processar NF-e {num_nf}: {str(e)}", exc_info=True)
         return False
-
-def _update_last_processed(cursor, chave_nfe):
-    try:
-        cursor.execute("""
-            UPDATE nfe_status
-            SET last_processed_at = NOW()
-            WHERE chave_nfe = %s
-        """, (chave_nfe,))
-    except mysql.connector.Error as e:
-        logger.error(f"Erro ao atualizar last_processed_at para {chave_nfe}: {e}")
-
-def _update_nfe_status(cursor, chave_nfe, status, ultimo_codigo_ocorrencia):
-    try:
-        cursor.execute("""
-            UPDATE nfe_status
-            SET status = %s, ultimo_evento = %s, updated_at = NOW()
-            WHERE chave_nfe = %s
-        """, (status, ultimo_codigo_ocorrencia, chave_nfe))
-    except mysql.connector.Error as e:
-        logger.error(f"Erro ao atualizar nfe_status para {chave_nfe}: {e}")
+    finally:
+        if conn:
+            close_connection(conn)
 
 def _should_process_with_current_system(conn, transportadora_descricao):
     local_cursor = conn.cursor(buffered=True)  # Usa um cursor buffered
@@ -183,7 +208,7 @@ def process_not_found_nfes():
 
 def run_scheduler():
     """Executa o agendador de tarefas."""
-    schedule.every(11).minutes.do(process_pending_nfes)
+    schedule.every(1).minutes.do(process_pending_nfes)
     schedule.every(5).hours.do(process_transit_nfes)
     schedule.every(10).hours.do(process_not_found_nfes)
 

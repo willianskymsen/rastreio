@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vincular Ocorrências à Categoria - Sistemas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link href="{{ url_for('status.static', filename='categorias.css') }}" rel="stylesheet" />
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-link-45deg me-2"></i>Vincular Ocorrências
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('status.status') }}">
+                            <i class="bi bi-arrow-left me-1"></i>Voltar
+                        </a>
+                    </li>
+                </ul>
+                <div class="ms-auto">
+                    <span class="navbar-text me-3 text-light" id="selected-category-display">
+                        <i class="bi bi-folder me-1"></i>Nenhuma categoria selecionada
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="section-header d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-list-check me-2"></i>Vincular Ocorrências à Categoria</h2>
+                <p class="text-muted">Selecione uma categoria e mova as ocorrências para vincular.</p>
+            </div>
+            <button class="btn btn-primary" id="nova-categoria-btn">
+                <i class="bi bi-plus-lg me-2"></i>Nova Categoria
+            </button>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-folder2 me-2"></i>Categorias Disponíveis</h5>
+                    <span class="badge bg-secondary" id="category-count">0</span>
+                </div>
+            </div>
+            <div class="card-body pb-0">
+                <div class="row row-cols-1 row-cols-md-4 g-3" id="category-cards">
+                    <template id="category-card-template">
+                        <div class="col">
+                            <div class="card category-card" data-category-id="" data-category-name="">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="card-title mb-0"></h6>
+                                        <i class="bi bi-check-circle text-primary category-check d-none"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="col" id="empty-category-state">
+                        <div class="card h-100">
+                            <div class="card-body empty-state">
+                                <i class="bi bi-folder2-open"></i>
+                                <p>Nenhuma categoria encontrada</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-white text-muted">
+                <small><i class="bi bi-info-circle me-1"></i>Clique em uma categoria para selecioná-la.</small>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-5">
+                <div class="card h-100">
+                    <div class="card-header bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Ocorrências Disponíveis</h5>
+                            <span class="badge bg-secondary" id="available-count">0</span>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="search-ocorrencias" placeholder="Filtrar ocorrências...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0 table-container">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="ocorrencias-table">
+                                <thead>
+                                    <tr>
+                                        <th>CÓDIGO SSW</th>
+                                        <th>DESCRIÇÃO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ocorrencias-table-body">
+                                    <tr id="loading-ocorrencias-row">
+                                        <td colspan="2" class="text-center py-5">
+                                            <div class="d-flex flex-column align-items-center">
+                                                <div class="spinner-border text-primary mb-3" role="status">
+                                                    <span class="visually-hidden">Carregando...</span>
+                                                </div>
+                                                <span>Carregando ocorrências...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr id="error-ocorrencias-row" class="d-none">
+                                        <td colspan="2" class="text-center text-danger py-5">
+                                            <div class="empty-state">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                <p>Erro ao carregar as ocorrências.</p>
+                                                <button class="btn btn-sm btn-outline-primary mt-2" id="retry-load-btn">
+                                                    <i class="bi bi-arrow-clockwise me-1"></i>Tentar novamente
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr id="no-ocorrencias-row" class="d-none">
+                                        <td colspan="2" class="text-center py-5">
+                                            <div class="empty-state">
+                                                <i class="bi bi-inbox"></i>
+                                                <p>Nenhuma ocorrência disponível.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white d-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="card h-100 border-0 bg-transparent shadow-none">
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <div class="transfer-buttons">
+                            <button class="btn btn-outline-primary transfer-btn" id="move-to-right-btn" disabled>
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                            <button class="btn btn-outline-primary transfer-btn" id="move-to-left-btn" disabled>
+                                <i class="bi bi-arrow-left"></i>
+                            </button>
+                            <button class="btn btn-outline-primary transfer-btn" id="move-all-right-btn" title="Mover todas">
+                                <i class="bi bi-arrow-right-square"></i>
+                            </button>
+                            <button class="btn btn-outline-primary transfer-btn" id="move-all-left-btn" title="Remover todas">
+                                <i class="bi bi-arrow-left-square"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="card h-100">
+                    <div class="card-header bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Ocorrências a Vincular</h5>
+                            <span class="badge bg-primary badge-count" id="linked-count">0</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0 list-container">
+                        <ul class="list-group list-group-flush" id="linked-ocorrencias-list">
+                            <li id="empty-linked-list" class="list-group-item text-center py-5">
+                                <div class="empty-state">
+                                    <i class="bi bi-link-45deg"></i>
+                                    <p>Nenhuma ocorrência vinculada.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Clique em um item para selecioná-lo.</small>
+                        <button class="btn btn-outline-danger btn-sm" id="clear-all-btn" disabled>
+                            <i class="bi bi-trash me-1"></i>Limpar todos
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-footer mt-4 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted" id="selection-status">Nenhuma categoria selecionada</span>
+            </div>
+            <button class="btn btn-success btn-lg" id="salvar-vinculacoes-btn" disabled>
+                <i class="bi bi-save me-2"></i>Salvar Vinculações
+            </button>
+        </div>
+    </div>
+
+    <div class="modal fade" id="novaCategoriaModal" tabindex="-1" aria-labelledby="novaCategoriaModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="novaCategoriaModalLabel">
+                        <i class="bi bi-folder-plus me-2"></i>Nova Categoria
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="novaCategoriaForm">
+                        <div class="mb-3">
+                            <label for="descricaoCategoria" class="form-label">Descrição da Categoria</label>
+                            <input type="text" class="form-control" id="descricaoCategoria" required
+                                placeholder="Digite a descrição da categoria">
+                            <div class="form-text text-muted">
+                                <i class="bi bi-info-circle me-1"></i>A descrição deve ser clara e objetiva.
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" form="novaCategoriaForm" id="salvarNovaCategoriaBtn">
+                        <i class="bi bi-check-lg me-1"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmation-message">Tem certeza que deseja realizar esta ação?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirm-action-btn">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast-template" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-check-circle me-2"></i><span id="toastMessage"></span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VINCULAR_CONFIG = {
+            urls: {
+                getOcorrencias: "{{ url_for('status.api_ocorrencias') }}",
+                getCategorias: "{{ url_for('status.get_categorias') }}",
+                vincularOcorrencia: "{{ url_for('status.vincular_ocorrencias') }}"
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('status.static', filename='categorias.js') }}"></script>
+</body>
+
+</html>

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from modules.database import get_mysql_connection
 from modules.logger_config import logger
+from modules import status
 import mysql.connector
 
 rastro_blueprint = Blueprint('rastro', __name__, template_folder='templates', static_folder='static')
@@ -12,52 +13,68 @@ def index():
 
 @rastro_blueprint.route("/rastro/api/arquivos", methods=["GET"])
 def api_arquivos():
+    # ... (seu código atual para api_arquivos)
     try:
         # Obter parâmetro de filtro da query string
         status_filter = request.args.get('status', '').upper()
-        
+
         conn = get_mysql_connection()
         if not conn:
             return jsonify({"error": "Falha na conexão com o MySQL"}), 500
 
-        cursor = conn.cursor(dictionary=True)
-        
-        # Consulta base
-        query = """
-            SELECT 
+        cursor_nfe_status = conn.cursor(dictionary=True)
+
+        # Consulta base para obter as NFs, incluindo a coluna ultimo_evento
+        query_nfes = """
+            SELECT
                 NUM_NF,
-                status,
                 transportadora,
                 cidade,
-                uf
+                uf,
+                ultimo_evento
             FROM nfe_status
             WHERE NUM_NF IS NOT NULL
             AND NUM_NF != ''
+            ORDER BY updated_at DESC
         """
-        
-        # Adicionar filtro de status se fornecido
-        params = []
-        if status_filter in ['ENTREGUE', 'EM_TRANSITO']:
-            query += " AND status = %s"
-            params.append(status_filter)
-        elif status_filter:
-            # Se fornecido um filtro inválido, retornar vazio
-            return jsonify([])
-            
-        query += " ORDER BY updated_at DESC"
-        
-        cursor.execute(query, params)
-        nfes = cursor.fetchall()
+        cursor_nfe_status.execute(query_nfes)
+        nfes_data = cursor_nfe_status.fetchall()
+
+        nfes_com_status_determinado = []
+
+        for nfe in nfes_data:
+            ultimo_evento = nfe.get('ultimo_evento')
+
+            # Determinar o status usando o módulo status
+            status_determinado = status.determinar_status(conn, ultimo_evento)
+
+            # Adicionar o status determinado ao dicionário da NF
+            nfe['status'] = status_determinado
+            nfes_com_status_determinado.append(nfe)
+
         conn.close()
-        
-        logger.info(f"NFs encontradas: {len(nfes)}")
-        
-        return jsonify(nfes)
+
+        # Filtrar as NFs com base no parâmetro de status (agora no status determinado)
+        nfes_filtradas = []
+        if status_filter in ['ENTREGUE', 'PROBLEMA', 'EM_TRANSITO', 'NAO_ENCONTRADO']:
+            for nfe in nfes_com_status_determinado:
+                if nfe['status'] == status_filter:
+                    nfes_filtradas.append(nfe)
+        elif not status_filter:
+            nfes_filtradas = nfes_com_status_determinado
+        else:
+            return jsonify([]) # Retorna vazio se o filtro de status for inválido
+
+        logger.info(f"NFs encontradas após determinação de status: {len(nfes_filtradas)}")
+
+        return jsonify(nfes_filtradas)
 
     except Exception as e:
         logger.error(f"Erro ao buscar arquivos: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
 @rastro_blueprint.route("/rastro/api/dados", methods=["POST"])
 def api_dados():
@@ -137,37 +154,36 @@ def api_dados():
 
 @rastro_blueprint.route("/rastro/api/status", methods=["GET"])
 def api_status():
+    conn = None
     try:
         conn = get_mysql_connection()
         if not conn:
             return jsonify({"error": "Falha na conexão com o MySQL"}), 500
 
-        with conn.cursor(dictionary=True) as cursor:
-            # Filtra apenas os status relevantes
-            cursor.execute("""
-                SELECT 
-                    status,
-                    COUNT(*) as count
-                FROM nfe_status
-                WHERE status IN ('ENTREGUE', 'EM_TRANSITO')
-                GROUP BY status
-            """)
+        cursor_nfe_status = conn.cursor(dictionary=True)
 
-            status_counts = cursor.fetchall()
-            
-            result = {
-                'ENTREGUE': 0,
-                'EM_TRANSITO': 0,
-                'TOTAL': 0
-            }
-            
-            for item in status_counts:
-                status = item['status']
-                if status in result:
-                    result[status] = item['count']
-                result['TOTAL'] += item['count']
+        # Buscar todos os registros de nfe_status para obter o ultimo_evento
+        cursor_nfe_status.execute("SELECT NUM_NF, ultimo_evento FROM nfe_status WHERE NUM_NF IS NOT NULL AND NUM_NF != ''")
+        nfe_status_data = cursor_nfe_status.fetchall()
 
-            return jsonify(result)
+        status_counts = {
+            'ENTREGUE': 0,
+            'EM_TRANSITO': 0,
+            'PROBLEMA': 0,
+            'NAO_ENCONTRADO': 0,
+            'TOTAL': 0
+        }
+
+        for item in nfe_status_data:
+            ultimo_evento = item.get('ultimo_evento')
+
+            # Determinar o status usando o módulo status
+            status_determinado = status.determinar_status(conn, ultimo_evento)
+            status_counts[status_determinado] += 1
+            status_counts['TOTAL'] += 1
+
+        conn.close()
+        return jsonify(status_counts)
 
     except Exception as e:
         logger.error(f"Erro ao buscar status: {str(e)}")

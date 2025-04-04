@@ -46,12 +46,12 @@ def sync_nfe_to_nfe_status_periodically():
             if novas_nfs:
                 logger.info(f"Encontradas {len(novas_nfs)} novas NF-es na tabela nfe para adicionar à nfe_status.")
                 insert_query = """
-                        INSERT INTO nfe_status (chave_nfe, NUM_NF, ultimo_evento, data_hora, status, transportadora, cidade, uf, dt_saida)
-                        SELECT n.CHAVE_ACESSO_NFEL, n.NUM_NF, '', NOW(), 'PENDENTE', n.NOME_TRP, n.CIDADE, n.UF, n.DT_SAIDA
-                        FROM nfe n
-                        WHERE n.NUM_NF = %s
-                          AND NOT EXISTS (SELECT 1 FROM nfe_status ns WHERE ns.chave_nfe = n.CHAVE_ACESSO_NFEL)
-                    """
+                    INSERT INTO nfe_status (chave_nfe, NUM_NF, ultimo_evento, tipo_ocorrencia, data_hora, status, transportadora, cidade, uf, dt_saida, tentativas, last_processed_at, COD_INTERNO)
+                    SELECT n.CHAVE_ACESSO_NFEL, n.NUM_NF, '', ' PENDENTE', NOW(), 'PENDENTE', n.NOME_TRP, n.CIDADE, n.UF, n.DT_SAIDA, 0, NULL, NULL
+                    FROM nfe n
+                    WHERE n.NUM_NF = %s
+                      AND NOT EXISTS (SELECT 1 FROM nfe_status ns WHERE ns.chave_nfe = n.CHAVE_ACESSO_NFEL)
+                """
                 for num_nf in novas_nfs:
                     try:
                         cursor.execute(insert_query, (num_nf,))

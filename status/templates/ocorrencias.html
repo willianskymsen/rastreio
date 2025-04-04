@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gerenciamento de Ocorrências - Sistemas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <link href="{{ url_for('status.static', filename='styles.css') }}" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('rastro.index') }}">
+                <i class="bi bi-clipboard-check me-2"></i>Ocorrências
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('rastro.index') }}">
+                            <i class="bi bi-house-door me-1"></i>Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('status.categorias') }}">
+                           <i class="bi bi-tags me-1"></i>Categorias
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="page-header d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>
+                    <i class="bi bi-list-check me-2"></i>Gerenciamento de Ocorrências
+                </h2>
+                <p class="text-muted">
+                    Visualize, adicione e modifique ocorrências do sistema
+                </p>
+            </div>
+            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
+                data-bs-target="#adicionarOcorrenciaModal">
+                <i class="bi bi-plus-square me-2"></i>Nova Ocorrência
+            </button>
+        </div>
+
+        <div class="card mb-4 search-card">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control" id="searchInput"
+                                placeholder="Pesquisar ocorrências..." />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4" id="ocorrenciasPendentesCard">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-question-octagon me-2"></i>Ocorrências Pendentes de
+                    Codificação
+                    <span class="badge bg-warning ms-2" id="pendingCountBadge">0</span>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" id="togglePendentesBtn">
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+            </div>
+            <div class="card-body" id="ocorrenciasPendentesBody">
+                <div id="no-ocorrencias-pendentes" class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>Nenhuma ocorrência pendente de
+                    codificação.
+                </div>
+                <div class="table-responsive">
+                    <table id="ocorrenciasPendentesTable" class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th scope="col">Descrição</th>
+                                <th scope="col" class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="loading-pendentes-row">
+                                <td colspan="2" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="loading-pendentes-error-row" class="d-none">
+                                <td colspan="2" class="text-center text-danger py-3">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>Erro ao
+                                    carregar as ocorrências pendentes.
+                                    <button class="btn btn-sm btn-outline-danger ms-3" id="reloadPendentesBtn">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Tentar novamente
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-table me-2"></i>Lista de Ocorrências
+                    <span class="badge bg-primary ms-2" id="totalCountBadge">0</span>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" id="refreshBtn" title="Atualizar dados">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" id="exportBtn" title="Exportar para Excel">
+                        <i class="bi bi-file-earmark-excel"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="ocorrenciasTable" class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th scope="col">Código SSW</th>
+                                <th scope="col">Código Interno</th>
+                                <th scope="col">Descrição</th>
+                                <th scope="col" class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr id="loading-row">
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr id="load-ocorrencias-error-row" class="d-none">
+                                <td colspan="4" class="text-center text-danger py-3">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>Erro ao
+                                    carregar as ocorrências.
+                                    <button class="btn btn-sm btn-outline-danger ms-3" id="reloadBtn">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Tentar novamente
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr id="no-ocorrencias-row" class="d-none">
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox me-2"></i>Nenhuma ocorrência
+                                    encontrada.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <nav aria-label="Paginação de ocorrências">
+                    <ul class="pagination justify-content-center mb-0" id="pagination">
+                        </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="adicionarOcorrenciaModal" tabindex="-1" aria-labelledby="adicionarOcorrenciaModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="adicionarOcorrenciaModalLabel">
+                        <i class="bi bi-plus-circle me-2"></i>Adicionar Nova Ocorrência
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adicionarOcorrenciaForm">
+                        <div class="mb-3">
+                            <label for="codigo_ssw" class="form-label">Código SSW</label>
+                            <input type="text" class="form-control" id="codigo_ssw" name="codigo_ssw" required
+                                placeholder="Informe o código SSW" />
+                            <div class="form-text">
+                                Código de identificação único no sistema SSW.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="codigo_interno" class="form-label">Código Interno</label>
+                            <input type="text" class="form-control" id="codigo_interno" name="codigo_interno"
+                                placeholder="Informe o código interno (opcional)" />
+                            <div class="form-text">
+                                Código de identificação interno da ocorrência (se aplicável).
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descricao" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="descricao" name="descricao" rows="3" required
+                                placeholder="Descreva a ocorrência"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="salvarNovaOcorrenciaBtn">
+                        <i class="bi bi-save me-1"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editarOcorrenciaModal" tabindex="-1" aria-labelledby="editarOcorrenciaModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editarOcorrenciaModalLabel">
+                        <i class="bi bi-pencil-square me-2"></i>Editar Ocorrência
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editarOcorrenciaForm">
+                        <div class="mb-3">
+                            <label for="editCodigoSSW" class="form-label">Código SSW</label>
+                            <input type="text" class="form-control" id="editCodigoSSW" readonly />
+                            <div class="form-text">O código SSW não pode ser alterado.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editCodigoInterno" class="form-label">Código Interno</label>
+                            <input type="text" class="form-control" id="editCodigoInterno" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescricao" class="form-label">Descrição</label>
+                            <textarea class="form-control" id="editDescricao" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="salvarEditarBtn">
+                        <i class="bi bi-save me-1"></i>Salvar Alterações
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="atribuirCodigoModal" tabindex="-1" aria-labelledby="atribuirCodigoModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="atribuirCodigoModalLabel">
+                        <i class="bi bi-tags me-2"></i>Atribuir Código
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Descrição da ocorrência:</strong>
+                        <p id="atribuirCodigoDescricao" class="mb-0">
+                            Descrição da ocorrência pendente aparecerá aqui.
+                        </p>
+                    </div>
+                    <form id="atribuirCodigoForm">
+                        <input type="hidden" id="ocorrenciaPendenteId" />
+                        <div class="mb-3">
+                            <label for="novoCodigo" class="form-label">Novo Código SSW</label>
+                            <input type="text" class="form-control" id="novoCodigo" required
+                                placeholder="Informe o código SSW" />
+                            <div class="form-text">
+                                Código que será atribuído à ocorrência pendente.
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novoTipo" class="form-label">Tipo</label>
+                            <input type="text" class="form-control" id="novoTipo" required
+                                placeholder="Informe o tipo da ocorrência" />
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="salvarNovoCodigoBtn">
+                        <i class="bi bi-check-lg me-1"></i>Atribuir Código
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmarInativarModal" tabindex="-1" aria-labelledby="confirmarInativarModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmarInativarModalLabel">
+                        <i class="bi bi-exclamation-triangle me-2 text-warning"></i>Confirmar Inativação
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        Tem certeza que deseja inativar a ocorrência
+                        <strong id="inativarCodigoText"></strong>?
+                    </p>
+                    <p class="text-danger">
+                        <small>Esta ação não poderá ser desfeita.</small>
+                    </p>
+                    <input type="hidden" id="inativarCodigoSSW" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmarInativarBtn">
+                        <i class="bi bi-trash me-1"></i>Inativar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast-template" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive"
+            aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-info-circle me-2"></i><span id="toastMessage"></span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STATUS_CONFIG = {
+            urls: {
+                getOcorrencias: "{{ url_for('status.api_ocorrencias') }}",
+                adicionarOcorrencia: "{{ url_for('status.adicionar_ocorrencia') }}",
+                inativarOcorrencia: "{{ url_for('status.api_ocorrencias') }}",
+                editarOcorrencia: "{{ url_for('status.api_ocorrencias') }}",
+                getOcorrenciasPendentes:
+                    "{{ url_for('status.api_ocorrencias_pendentes') }}",
+                atribuirCodigoOcorrenciaPendenteBase:
+                    "{{ url_for('status.atribuir_codigo_ocorrencia_pendente', id=0) }}",
+            },
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('status.static', filename='ocorrencias.js') }}"></script>
+</body>
+
+</html>

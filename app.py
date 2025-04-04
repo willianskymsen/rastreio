@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory
 from rastro.rastro import rastro_blueprint
 from modules.module_initializer import initialize_modules
 from transportadoras.transportadoras import transportadoras_blueprint
+from status.status import status_blueprint
 from modules.tasks import init_tasks, start_background_process
 import logging
 
@@ -13,6 +14,7 @@ app = Flask(__name__)
 # Registrar blueprint
 app.register_blueprint(rastro_blueprint, url_prefix='/rastro')
 app.register_blueprint(transportadoras_blueprint, url_prefix='/transportadoras')
+app.register_blueprint(status_blueprint, url_prefix='/status')
 
 @app.route('/favicon.ico')
 def favicon():

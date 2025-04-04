@@ -1,7 +1,8 @@
 # modules/json_parser.py
 import logging
 from typing import Dict, List, Any, Optional
-from modules.status import determinar_status
+from modules.status import determinar_status, init_status  # Import init_status as well
+from modules.database import get_mysql_connection, close_connection
 import re
 
 logger = logging.getLogger(__name__)
@@ -14,8 +15,8 @@ _config = {
 }
 
 def init_json_parser(max_json_log_length: Optional[int] = None,
-                    strict_parsing: Optional[bool] = None,
-                    default_status: Optional[str] = None):
+                     strict_parsing: Optional[bool] = None,
+                     default_status: Optional[str] = None):
     """
     Initialize JSON parser module with custom configuration
 
@@ -48,6 +49,7 @@ def parse_json(json_data: Dict[str, Any]) -> Dict[str, Any]:
         - mensagem: Status message
         - items: List of tracking events
     """
+    conn = None
     try:
         logger.debug("Iniciando parse do JSON (first %d chars): %s...",
                      _config['max_json_log_length'],
@@ -82,7 +84,19 @@ def parse_json(json_data: Dict[str, Any]) -> Dict[str, Any]:
         # Process tracking events
         tracking_items = documento.get('tracking', [])
         items = _process_items(tracking_items)
-        status_entrega = determinar_status(items) if items else _config['default_status']
+
+        conn = get_mysql_connection()
+        if not conn:
+            logger.error("Falha ao obter conexão com o banco de dados para determinar o status.")
+            status_entrega = _config['default_status']
+        else:
+            init_status(conn)  # Ensure status module is initialized
+            if items:
+                ultimo_evento = items[-1]
+                codigo_ocorrencia = ultimo_evento.get("codigo_ocorrencia")
+                status_entrega = determinar_status(conn, codigo_ocorrencia)
+            else:
+                status_entrega = _config['default_status']
 
         return {
             "status": "SUCESSO",
@@ -101,6 +115,9 @@ def parse_json(json_data: Dict[str, Any]) -> Dict[str, Any]:
             "mensagem": f"Erro inesperado: {str(e)}",
             "items": []
         }
+    finally:
+        if conn:
+            close_connection(conn)
 
 def _process_items(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
     """Processa eventos de rastreamento extraindo TODOS os campos."""
@@ -187,7 +204,7 @@ if __name__ == "__main__":
                 print("\n🔄 Eventos:")
                 for i, item in enumerate(resultado["dados"]["items"], 1):
                     print(f"{i}. {item['data_hora']} - {item['ocorrencia']} ({item.get('codigo_ocorrencia', '')})")
-                    print(f"   {item['descricao']}")
+                    print(f"  {item['descricao']}")
 
         except json.JSONDecodeError:
             print("❌ JSON inválido!")

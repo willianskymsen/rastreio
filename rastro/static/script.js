@@ -194,6 +194,8 @@ function renderizarListaArquivos(files) {
   }
 
   files.forEach(file => {
+    console.log("Arquivo sendo renderizado:", file); // ADICIONE ESTE LOG
+
     const template = document.getElementById("fileItemTemplate").content.cloneNode(true);
     const item = template.querySelector('.file-item');
 
@@ -411,10 +413,12 @@ function mostrarErroCarregamento(error) {
 function calcularStatusData(files) {
   const entregue = files.filter(item => item.status === 'ENTREGUE').length;
   const emTransito = files.filter(item => item.status === 'EM_TRANSITO').length;
+  const problema = files.filter(item => item.status === 'PROBLEMA').length;
 
   return {
     ENTREGUE: entregue,
     EM_TRANSITO: emTransito,
+    PROBLEMA: problema,
     TOTAL: entregue + emTransito   // Só soma ENTREGUE + EM_TRANSITO
   };
 }

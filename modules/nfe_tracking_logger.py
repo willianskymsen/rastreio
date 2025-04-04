@@ -1,10 +1,11 @@
 # modules/nfe_tracking_logger.py
 import logging
 import mysql.connector
-import re  # Importa o módulo de expressões regulares
+import re  # Importa o módulo de expressões regulares  # noqa: F401
 from modules.database import get_mysql_connection, close_connection
 
 logger = logging.getLogger(__name__)
+
 
 def init_logger():
     """Inicializa o logger para este módulo."""
@@ -12,7 +13,10 @@ def init_logger():
     # Podemos adicionar configurações mais específicas aqui no futuro, se necessário.
     pass
 
-def insert_evento(cursor_main, chave_nfe, num_nf, evento, status, transportadora, cidade, uf):
+
+def insert_evento(
+    cursor_main, chave_nfe, num_nf, evento, status, transportadora, cidade, uf
+):
     """Função auxiliar para inserir um evento no banco"""
     try:
         # Prepara os dados para inserção
@@ -25,61 +29,79 @@ def insert_evento(cursor_main, chave_nfe, num_nf, evento, status, transportadora
             conn_fallback = None
             cursor_fallback = None
             try:
-                 conn_fallback = get_mysql_connection()
-                 if conn_fallback:
-                      cursor_fallback = conn_fallback.cursor()
-                      cursor_fallback.execute(
-                           "SELECT CODIGO_SSW FROM ocorrencias WHERE DESCRICAO = %s",
-                           (tipo_ocorrencia,)
-                      )
-                      resultado = cursor_fallback.fetchone()
-                      if resultado:
-                           codigo_ocorrencia = resultado[0]
-                      else:
-                           codigo_ocorrencia = "99"
-                 else:
-                      logger.error("Falha ao obter conexão com o banco de dados para fallback de código de ocorrência.")
-                      codigo_ocorrencia = "99" # Define como 99 em caso de falha na conexão
+                conn_fallback = get_mysql_connection()
+                if conn_fallback:
+                    cursor_fallback = conn_fallback.cursor()
+                    cursor_fallback.execute(
+                        "SELECT CODIGO_SSW FROM ocorrencias WHERE DESCRICAO = %s",
+                        (tipo_ocorrencia,),
+                    )
+                    resultado = cursor_fallback.fetchone()
+                    if resultado:
+                        codigo_ocorrencia = resultado[0]
+                    else:
+                        codigo_ocorrencia = "999"
+                else:
+                    logger.error(
+                        "Falha ao obter conexão com o banco de dados para fallback de código de ocorrência."
+                    )
+                    codigo_ocorrencia = (
+                        "999"  # Define como 999 em caso de falha na conexão
+                    )
             finally:
-                 if cursor_fallback:
-                      cursor_fallback.close()
-                 if conn_fallback:
-                      close_connection(conn_fallback)
+                if cursor_fallback:
+                    cursor_fallback.close()
+                if conn_fallback:
+                    close_connection(conn_fallback)
 
-            cursor_main.execute(
-               """
-               INSERT INTO nfe_logs
-               (chave_nfe, NUM_NF, codigo_ocorrencia, tipo_ocorrencia, cidade_ocorrencia,
-                 dominio, filial, nome_recebedor, documento_recebedor, descricao_completa,
-                 data_hora, status, transportadora, cidade, uf)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-               ON DUPLICATE KEY UPDATE
-                  descricao_completa = VALUES(descricao_completa),
-                  status = VALUES(status),
-                  tipo_ocorrencia = VALUES(tipo_ocorrencia),
-                  cidade_ocorrencia = VALUES(cidade_ocorrencia)
-                """,
-                (
-                  chave_nfe, num_nf,
-                  codigo_ocorrencia,
-                  tipo_ocorrencia,
-                  evento.get("cidade", ""),
-                  evento.get("dominio", ""),
-                  evento.get("filial", ""),
-                  evento.get("nome_recebedor", ""),
-                  evento.get("nro_doc_recebedor", ""),
-                  descricao_completa,
-                  evento.get("data_hora"),
-                  status,
-                  transportadora,
-                  cidade,
-                  uf
-            )
+        cursor_main.execute(
+            """
+            INSERT INTO nfe_logs
+            (chave_nfe, NUM_NF, codigo_ocorrencia, tipo_ocorrencia, cidade_ocorrencia,
+             dominio, filial, nome_recebedor, documento_recebedor, descricao_completa,
+             data_hora, status, transportadora, cidade, uf)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                descricao_completa = VALUES(descricao_completa),
+                status = VALUES(status),
+                tipo_ocorrencia = VALUES(tipo_ocorrencia),
+                cidade_ocorrencia = VALUES(cidade_ocorrencia)
+            """,
+            (
+                chave_nfe,
+                num_nf,
+                codigo_ocorrencia,
+                tipo_ocorrencia,
+                evento.get("cidade", ""),
+                evento.get("dominio", ""),
+                evento.get("filial", ""),
+                evento.get("nome_recebedor", ""),
+                evento.get("nro_doc_recebedor", ""),
+                descricao_completa,
+                evento.get("data_hora"),
+                status,
+                transportadora,
+                cidade,
+                uf,
+            ),
         )
     except mysql.connector.Error as e:
-          logger.warning(f"Evento já existe para NF-e {num_nf}, atualizando dados: {str(e)}")
+        logger.warning(
+            f"Evento já existe para NF-e {num_nf}, atualizando dados: {str(e)}"
+        )
 
-def insert_default_status(cursor, chave_nfe, num_nf, transportadora, cidade, uf, dt_saida, ultimo_evento):
+
+def insert_default_status(
+    cursor,
+    chave_nfe,
+    num_nf,
+    transportadora,
+    cidade,
+    uf,
+    dt_saida,
+    ultimo_evento,
+    tipo_ocorrencia,
+):
     """Função auxiliar para inserir status padrão quando não encontra dados"""
     # Verifica se a chave_nfe já existe
     cursor.execute("SELECT COUNT(*) FROM nfe_status WHERE chave_nfe = %s", (chave_nfe,))
@@ -90,18 +112,50 @@ def insert_default_status(cursor, chave_nfe, num_nf, transportadora, cidade, uf,
         cursor.execute(
             """
             INSERT INTO nfe_status
-            (chave_nfe, NUM_NF, ultimo_evento, data_hora, status, transportadora, cidade, uf, dt_saida)
-            VALUES (%s, %s, %s, NOW(), %s, %s, %s, %s, %s)
+            (chave_nfe, NUM_NF, ultimo_evento, data_hora, status, transportadora, cidade, uf, dt_saida, tipo_ocorrencia)
+            VALUES (%s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s)
             """,
             (
-                chave_nfe, num_nf,
+                chave_nfe,
+                num_nf,
                 ultimo_evento,  # Usando o valor passado
                 "NAO_ENCONTRADO",
                 transportadora,
                 cidade,
                 uf,
-                dt_saida
-            )
+                dt_saida,
+                tipo_ocorrencia,
+            ),
         )
     else:
-        logger.info(f"NF-e {chave_nfe} já existe na tabela `nfe_status`, ignorando inserção.")
+        logger.info(
+            f"NF-e {chave_nfe} já existe na tabela `nfe_status`, ignorando inserção."
+        )
+
+
+def _update_last_processed(cursor, chave_nfe):
+    try:
+        cursor.execute(
+            """
+            UPDATE nfe_status
+            SET last_processed_at = NOW()
+            WHERE chave_nfe = %s
+            """,
+            (chave_nfe,),
+        )
+    except mysql.connector.Error as e:
+        logger.error(f"Erro ao atualizar last_processed_at para {chave_nfe}: {e}")
+
+
+def _update_nfe_status(cursor, chave_nfe, status, ultimo_codigo_ocorrencia, tipo_ocorrencia):
+    try:
+        cursor.execute(
+            """
+            UPDATE nfe_status
+            SET status = %s, ultimo_evento = %s, tipo_ocorrencia = %s, updated_at = NOW()
+            WHERE chave_nfe = %s
+            """,
+            (status, ultimo_codigo_ocorrencia, tipo_ocorrencia, chave_nfe),
+        )
+    except mysql.connector.Error as e:
+        logger.error(f"Erro ao atualizar nfe_status para {chave_nfe}: {e}")
