@@ -1,0 +1,167 @@
+/* Add this to your print.css file or create a new CSS file */
+
+/* PDF-specific styling */
+.pdf-container {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #333;
+    line-height: 1.5;
+    background-color: #fff;
+    padding: 20px;
+}
+
+.pdf-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #eaeaea;
+}
+
+.pdf-logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.pdf-logo-accent {
+    color: #0056b3;
+}
+
+.pdf-title {
+    font-size: 18px;
+    color: #555;
+}
+
+.pdf-tracking-info {
+    margin-bottom: 25px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.pdf-tracking-info h1 {
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.pdf-status {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.pdf-status.entregue {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.pdf-status.transito {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.pdf-status.saiu-para-entrega {
+    background-color: #fff8e1;
+    color: #ff8f00;
+}
+
+.pdf-status.problema {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.pdf-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.pdf-info-item {
+    padding: 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+.pdf-info-item strong {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.pdf-info-item span {
+    font-size: 14px;
+}
+
+.pdf-timeline-section {
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+.pdf-timeline-section h2 {
+    font-size: 16px;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eaeaea;
+}
+
+.pdf-timeline-item {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #eaeaea;
+    border-radius: 5px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.pdf-timeline-item.latest {
+    background-color: #fafafa;
+    border-left: 3px solid #0056b3;
+}
+
+.pdf-timeline-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.pdf-timeline-date {
+    font-size: 12px;
+    color: #666;
+}
+
+.pdf-timeline-status {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.pdf-timeline-content h3 {
+    font-size: 14px;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.pdf-event-details {
+    font-size: 12px;
+    color: #555;
+}
+
+.pdf-event-detail {
+    margin-bottom: 5px;
+}
+
+.pdf-footer {
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #eaeaea;
+    text-align: center;
+    font-size: 10px;
+    color: #777;
+}

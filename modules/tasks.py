@@ -6,10 +6,12 @@ from datetime import datetime, timedelta
 from multiprocessing import Process
 from modules.database import get_mysql_connection, close_connection
 from modules.tracking import fetch_tracking_data
-from modules.status import determinar_status, init_status  # Import init_status
-from modules import nfe_tracking_logger  # Import the logger module
+from modules.status import determinar_status, init_status
+from modules import nfe_tracking_logger
 import time
 import schedule
+import base64
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ _config = {
 }
 
 def init_tasks(max_retries: Optional[int] = None,
-                 log_all_events: Optional[bool] = None):
+              log_all_events: Optional[bool] = None):
     """
     Inicializa o módulo de tasks com configurações personalizadas
     """
@@ -30,6 +32,29 @@ def init_tasks(max_retries: Optional[int] = None,
     if log_all_events is not None:
         _config['max_retries'] = max_retries
     logger.info(f"Módulo de tasks inicializado com configuração: {_config}")
+
+def _gerar_token_base64():
+    """Gera um token único e o codifica em base64."""
+    return base64.urlsafe_b64encode(uuid.uuid4().bytes).decode('ascii').rstrip('=')
+
+def gerar_e_salvar_token_nfe(cursor, num_nf: str):
+    """
+    Gera um token base64 para a NF e o salva no banco de dados.
+    """
+    try:
+        token = _gerar_token_base64()
+        cursor.execute(
+            "INSERT INTO nfe_tokens (NUM_NF, token) VALUES (%s, %s)",
+            (num_nf, token)
+        )
+        logger.info(f"Token gerado e salvo para a NF {num_nf}: {token}")
+        return True
+    except mysql.connector.IntegrityError:
+        logger.info(f"Token já existe para a NF {num_nf}. Ignorando.")
+        return True
+    except mysql.connector.Error as e:
+        logger.error(f"Erro ao gerar e salvar token para a NF {num_nf}: {e}")
+        return False
 
 def processar_nfe(cursor, chave_nfe: str, num_nf: str, transportadora: str, cidade: str, uf: str, dt_saida: str) -> bool:
     """
@@ -61,10 +86,10 @@ def processar_nfe(cursor, chave_nfe: str, num_nf: str, transportadora: str, cida
             logger.error("Falha ao obter conexão com o banco de dados para determinar o status.")
             status = _config['default_status']
         else:
-            init_status(conn)  # Ensure status module is initialized
+            init_status(conn)
             status = determinar_status(conn, codigo_ocorrencia)
             close_connection(conn)
-            conn = None # Ensure conn is reset after closing
+            conn = None
 
         ultimo_codigo_ocorrencia_api = dados_api.get("ultimo_codigo_ocorrencia")
         ultimo_codigo_ocorrencia_salvar = ultimo_codigo_ocorrencia_api
@@ -84,17 +109,18 @@ def processar_nfe(cursor, chave_nfe: str, num_nf: str, transportadora: str, cida
             logger.info(f"NF-e {num_nf}: Primeira consulta bem-sucedida. Logando todos os eventos.")
             for evento in items:
                 nfe_tracking_logger.insert_evento(cursor, chave_nfe, num_nf, evento, status, transportadora, cidade, uf)
+            # Chamando a função para gerar e salvar o token
+            gerar_e_salvar_token_nfe(cursor, num_nf)
         else:
             # Subsequent checks
             if status == 'ENTREGUE':
                 logger.info(f"NF-e {num_nf}: Status ENTREGUE em consulta subsequente. Ignorando eventos.")
-                # We still need to update the nfe_status to ENTREGUE if it's not already
                 cursor.execute("SELECT status FROM nfe_status WHERE chave_nfe = %s", (chave_nfe,))
                 current_status = cursor.fetchone()[0]
                 if current_status != 'ENTREGUE':
                     nfe_tracking_logger._update_nfe_status(cursor, chave_nfe, status, ultimo_codigo_ocorrencia_salvar, tipo_ocorrencia)
                     logger.info(f"NF-e {num_nf}: Atualizando status para ENTREGUE.")
-                return True # Return True to indicate processing was done (status updated)
+                return True
             else:
                 logger.info(f"NF-e {num_nf}: Consulta subsequente. Logando apenas o último evento.")
                 nfe_tracking_logger.insert_evento(cursor, chave_nfe, num_nf, items[-1], status, transportadora, cidade, uf)
@@ -111,11 +137,11 @@ def processar_nfe(cursor, chave_nfe: str, num_nf: str, transportadora: str, cida
             close_connection(conn)
 
 def _should_process_with_current_system(conn, transportadora_descricao):
-    local_cursor = conn.cursor(buffered=True)  # Usa um cursor buffered
+    local_cursor = conn.cursor(buffered=True)
     try:
         local_cursor.execute("SELECT SISTEMA FROM transportadoras WHERE DESCRICAO = %s", (transportadora_descricao,))
         transportadora_data = local_cursor.fetchone()
-        local_cursor.fetchall()  # Garante que todos os resultados foram consumidos
+        local_cursor.fetchall()
         return transportadora_data and transportadora_data[0] == 1
     except mysql.connector.Error as e:
         logger.error(f"Erro ao verificar sistema da transportadora '{transportadora_descricao}': {e}")
@@ -208,7 +234,7 @@ def process_not_found_nfes():
 
 def run_scheduler():
     """Executa o agendador de tarefas."""
-    schedule.every(1).minutes.do(process_pending_nfes)
+    schedule.every(11).minutes.do(process_pending_nfes)
     schedule.every(5).hours.do(process_transit_nfes)
     schedule.every(10).hours.do(process_not_found_nfes)
 
@@ -219,7 +245,6 @@ def run_scheduler():
 def start_background_process():
     """Inicia o agendamento de tarefas em um processo separado."""
     logger.info("Iniciando o agendamento de tarefas...")
-    # Executa a verificação de PENDENTE uma vez na inicialização
     process_pending_nfes()
     logger.info("Verificação inicial de NF-es PENDENTES concluída.")
 

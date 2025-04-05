@@ -13,7 +13,7 @@ def index():
 
 @rastro_blueprint.route("/rastro/api/arquivos", methods=["GET"])
 def api_arquivos():
-    # ... (seu código atual para api_arquivos)
+    # ... (seu código atual para api_arquivos - manter inalterado)
     try:
         # Obter parâmetro de filtro da query string
         status_filter = request.args.get('status', '').upper()
@@ -109,7 +109,7 @@ def api_dados():
                 FROM nfe_logs
                 WHERE NUM_NF = %s
                 ORDER BY data_hora DESC
-            """,
+                """,
                 (num_nf,),
             )
             response_data['historico_rastreamento'] = cursor_logs.fetchall()
@@ -122,7 +122,7 @@ def api_dados():
                 FROM nfe
                 WHERE NUM_NF = %s
                 LIMIT 1
-            """,
+                """,
                 (num_nf,),
             )
             nfe_info = cursor_nfe.fetchone()
