@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sistema Skymsen de rastreamento de cargas e encomendas"/>
+    <title>Skymsen - Sistema de Rastreamento de Cargas</title>
+    <link rel="stylesheet" href="{{ url_for('acesso.static', filename='rastreio.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('acesso.static', filename='print.css') }}"/>
+    <link rel="stylesheet" href="{{ url_for('acesso.static', filename='share.css') }}"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <script>
+        // Configurações globais para os endpoints
+        window.endpoints = {
+            rastreio: "{{ url_for('acesso.api_rastreio') }}"
+            // Adicione outros endpoints aqui se necessário
+        };
+    </script>
+  </head>
+
+  <body>
+    <header>
+      <div class="container">
+        <div class="header-content">
+          <div class="logo">
+            <i class="fas fa-truck-fast"></i>
+            Skymsen
+          </div>
+          <div class="header-actions">
+            <button
+              id="print-button"
+              aria-label="Imprimir rastreamento"
+              title="Imprimir"
+            >
+              <i class="fas fa-print"></i>
+            </button>
+            <button
+              id="share-button"
+              aria-label="Compartilhar rastreamento"
+              title="Compartilhar"
+            >
+              <i class="fas fa-share-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="main-content">
+        <div class="breadcrumb"><a href="{{ url_for('acesso.acesso_token') }}">Início</a> &gt; Rastreamento</div>
+
+        <h1>Rastreamento da NF: <span id="tracking-code"></span></h1>
+
+        <div class="tracking-summary">
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-indicator" id="progress-indicator"></div>
+            </div>
+            <div class="progress-steps">
+              <div class="progress-step" data-step="coletado">
+                <div class="step-icon"><i class="fas fa-box"></i></div>
+                <div class="step-label">Coletado</div>
+              </div>
+              <div class="progress-step" data-step="transito">
+                <div class="step-icon">
+                  <i class="fas fa-shipping-fast"></i>
+                </div>
+                <div class="step-label">Em Trânsito</div>
+              </div>
+              <div class="progress-step" data-step="saiu-para-entrega">
+                <div class="step-icon"><i class="fas fa-truck"></i></div>
+                <div class="step-label">Saiu para Entrega</div>
+              </div>
+              <div class="progress-step" data-step="entregue">
+                <div class="step-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="step-label">Entregue</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="container-para-imprimir">
+          <div class="info-card" id="remessa-info-card" style="display: none">
+            <div class="card-header">
+              <h2><i class="fas fa-info-circle"></i> Informações da Remessa</h2>
+              <div class="status" id="remessa-status"></div>
+            </div>
+
+            <div class="info-grid" id="remessa-info-grid">
+              <div
+                class="info-item"
+                id="destinatario-info"
+                style="display: none"
+              >
+                <strong><i class="fas fa-user-check"></i> Destinatário</strong>
+                <span id="destinatario"></span>
+              </div>
+              <div class="info-item" id="remetente-info" style="display: none">
+                <strong><i class="fas fa-user"></i> Remetente</strong>
+                <span id="remetente"></span>
+              </div>
+              <div class="info-item" id="peso-info" style="display: none">
+                <strong
+                  ><i class="fas fa-weight-hanging"></i> Peso Bruto</strong
+                >
+                <span id="peso-brt"></span>
+              </div>
+              <div class="info-item" id="volumes-info" style="display: none">
+                <strong><i class="fas fa-boxes"></i> Volumes</strong>
+                <span id="volumes"></span>
+              </div>
+              <div
+                class="info-item"
+                id="data-postagem-info"
+                style="display: none"
+              >
+                <strong
+                  ><i class="far fa-calendar-plus"></i> Data de Postagem</strong
+                >
+                <span id="data-postagem"></span>
+              </div>
+              <div
+                class="info-item"
+                id="previsao-entrega-info"
+                style="display: none"
+              >
+                <strong
+                  ><i class="far fa-calendar-check"></i> Previsão de
+                  Entrega</strong
+                >
+                <span id="previsao-entrega"></span>
+              </div>
+              <div
+                class="info-item"
+                id="tipo-servico-info"
+                style="display: none"
+              >
+                <strong><i class="fas fa-tags"></i> Tipo de Serviço</strong>
+                <span id="tipo-servico"></span>
+              </div>
+              <div class="info-item" id="modalidade-info" style="display: none">
+                <strong><i class="fas fa-truck-loading"></i> Modalidade</strong>
+                <span id="modalidade"></span>
+              </div>
+              <div id="campos-adicionais-container"></div>
+            </div>
+          </div>
+
+          <div class="tracking-timeline">
+            <div class="timeline-header">
+              <h2><i class="fas fa-history"></i> Histórico de Transporte</h2>
+              <div class="timeline-filter">
+                <label for="filter-events">Filtrar:</label>
+                <select id="filter-events">
+                  <option value="todos">Todos os eventos</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="timeline-container">
+              <div id="tracking-history-container">
+                <div class="skeleton-loader">
+                  <div class="skeleton-item"></div>
+                  <div class="skeleton-item"></div>
+                  <div class="skeleton-item"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      <footer>
+        <div class="footer-content">
+          <div class="copyright">
+            © <span id="current-year"></span> Skymsen - Sistema de Rastreamento
+            de Cargas
+          </div>
+          <div class="updated-time">
+            Atualizado em: <span id="data-atualizacao">
+                </span>
+        </div>
+      </footer>
+    </div>
+
+    <div id="share-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>Compartilhar Link</h3>
+        <div class="share-input">
+          <input type="text" id="share-url" value="" readonly />
+          <button id="copy-url-btn"><i class="fas fa-copy"></i> Copiar</button>
+        </div>
+        <p class="copy-feedback" id="copy-feedback">Link copiado!</p>
+        <div class="share-options">
+          <button id="whatsapp-share-btn" class="share-btn whatsapp">
+            <i class="fab fa-whatsapp"></i> WhatsApp
+          </button>
+          <button id="email-share-btn" class="share-btn email">
+            <i class="fas fa-envelope"></i> Email
+          </button>
+          <button id="sms-share-btn" class="share-btn sms">
+            <i class="fas fa-sms"></i> SMS
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('acesso.static', filename='rastreio.js') }}" defer></script>
+  </body>
+</html>

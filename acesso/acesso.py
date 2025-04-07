@@ -2,11 +2,13 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from flask import Blueprint, render_template, request, Flask, jsonify
+from flask import Blueprint, render_template, request, Flask, jsonify, redirect, url_for
 from modules.database import get_mysql_connection
 from modules.logger_config import logger
 import mysql.connector
 from datetime import datetime
+
+acesso_blueprint = Blueprint('acesso', __name__, template_folder='templates', static_folder='static')
 
 # Função auxiliar para determinar o status dinamicamente a partir do histórico
 def determinar_status_dinamico(historico):
@@ -18,21 +20,19 @@ def determinar_status_dinamico(historico):
         return categoria_ocorrencia.title(), categoria_ocorrencia.lower().replace(" ", "-")
     return "Status Desconhecido", "desconhecido"
 
-rastreio_blueprint = Blueprint('rastreio', __name__, template_folder='templates', static_folder='static')
-
-@rastreio_blueprint.route("/")
+@acesso_blueprint.route("/home")
 def index():
     logger.debug("Rota / acessada - renderizando página inicial.")
     return render_template("rastreio.html")
 
-@rastreio_blueprint.route("/rastreio")
+@acesso_blueprint.route("/acesso")
 def rastreio_token():
-    logger.info("Rota /rastreio acessada.")
+    logger.info("Rota /acesso acessada.")
     token = request.args.get('chave')
     logger.debug(f"Parâmetro recebido - chave: {token}")
 
     if not token:
-        logger.warning("Requisição para /rastreio sem o parâmetro 'chave'.")
+        logger.warning("Requisição para /acesso sem o parâmetro 'chave'.")
         return render_template("erro.html", mensagem="URL inválida: parâmetro 'chave' não encontrado.")
 
     conn = None
@@ -92,14 +92,14 @@ def rastreio_token():
                             item['data_hora'] = item['data_hora'].strftime('%Y-%m-%dT%H:%M:%S')
                     response_data['historico_rastreamento'] = historico
 
-                    # Determinar status da remessa de forma dinâmica
-                    status_description, status_class = determinar_status_dinamico(historico)
-                    response_data['status_description'] = status_description
-                    response_data['status_class'] = status_class
-
                 except mysql.connector.Error as err:
                     logger.error(f"Erro ao executar query (nfe_logs): {err}")
                     raise
+
+            # Determinar status da remessa de forma dinâmica
+            status_description, status_class = determinar_status_dinamico(historico)
+            response_data['status_description'] = status_description
+            response_data['status_class'] = status_class
 
             # Informações adicionais da NF
             with conn.cursor(dictionary=True) as cursor_nfe:
@@ -122,13 +122,36 @@ def rastreio_token():
                 except mysql.connector.Error as err:
                     logger.error(f"Erro ao executar query (nfe): {err}")
                     raise
+            
+            # Obter a data e hora da última atualização da tabela nfe_status
+            with conn.cursor(dictionary=True) as cursor_status:
+                query_status = """
+                    SELECT updated_at
+                    FROM transporte.nfe_status
+                    WHERE NUM_NF = %s
+                    ORDER BY updated_at DESC
+                    LIMIT 1
+                """
+                params_status = (num_nf,)
+                logger.debug(f"Executando query_status: {query_status} | Parâmetros: {params_status}")
+                try:
+                    cursor_status.execute(query_status, params_status)
+                    status_info = cursor_status.fetchone()
+                    logger.debug(f"Resultado da query_status: {status_info}")
+                    if status_info and status_info.get('updated_at'):
+                        response_data['ultima_atualizacao'] = status_info['updated_at'].isoformat()
+                    else:
+                        response_data['ultima_atualizacao'] = None  # Ou algum valor padrão, se preferir
+                except mysql.connector.Error as err:
+                    logger.error(f"Erro ao executar query (nfe_status): {err}")
+                    raise
 
-            logger.info(f"Renderizando página de rastreio para NUM_NF: {num_nf}")
+            logger.info(f"Renderizando página de acesso para NUM_NF: {num_nf}")
             return render_template("rastreio.html", rastreamento_data=response_data, datetime=datetime)
 
         else:
             logger.warning(f"Token '{token}' não encontrado na base de dados.")
-            return render_template("erro.html", mensagem="Token de rastreio inválido.")
+            return render_template("erro.html", mensagem="Token de acesso inválido.")
 
     except mysql.connector.Error as err:
         logger.critical(f"Erro ao conectar ou consultar o banco de dados (nível superior): {err}")
@@ -142,14 +165,14 @@ def rastreio_token():
             logger.info("Conexão com o banco de dados encerrada.")
 
 # Nova rota API para enviar os dados de rastreamento para o front-end em formato JSON
-@rastreio_blueprint.route("/api/rastreio")
+@acesso_blueprint.route("/api/acesso")
 def api_rastreio():
-    logger.info("Rota /api/rastreio acessada.")
+    logger.info("Rota /api/acesso acessada.")
     token = request.args.get('chave')
     logger.debug(f"Parâmetro recebido - chave: {token}")
 
     if not token:
-        logger.warning("Requisição para /api/rastreio sem o parâmetro 'chave'.")
+        logger.warning("Requisição para /api/acesso sem o parâmetro 'chave'.")
         return jsonify({"erro": "URL inválida: parâmetro 'chave' não encontrado."}), 400
 
     conn = None
@@ -258,14 +281,59 @@ def api_rastreio():
             conn.close()
             logger.info("Conexão com o banco de dados encerrada.")
 
-@rastreio_blueprint.route("/erro")
+@acesso_blueprint.route("/erro")
 def erro():
     mensagem = request.args.get('mensagem', 'Ocorreu um erro.')
     logger.debug(f"Rota /erro acessada com mensagem: {mensagem}")
     return render_template("erro.html", mensagem=mensagem)
 
+# Nova rota para entrada de token
+@acesso_blueprint.route("/", methods=['GET', 'POST'])
+def acesso_token():
+    if request.method == 'POST':
+        token = request.form.get('token')  # Obtém o token do formulário
+        if token:
+            return redirect(url_for('acesso.verificar_token', token=token))
+        else:
+            return render_template("erro.html", mensagem="Por favor, insira um token.")
+    return render_template("acesso_token.html")  # Exibe o formulário de entrada de token
+
+# Nova rota para verificar o token
+@acesso_blueprint.route("/verificar_token", methods=['GET', 'POST'])
+def verificar_token():
+    if request.method == 'POST':
+        token = request.form.get('token')
+        if not token:
+            logger.warning("Rota /verificar_token acessada sem o parâmetro 'token'.")
+            return render_template("erro.html", mensagem="Por favor, insira um token.")
+
+        conn = None
+        try:
+            conn = get_mysql_connection()
+            cursor = conn.cursor(dictionary=True)
+            query_token = "SELECT NUM_NF FROM transporte.nfe_tokens WHERE token = %s"
+            params_token = (token,)
+            cursor.execute(query_token, params_token)
+            result_token = cursor.fetchone()
+
+            if result_token:
+                # Token válido, redireciona para a página de rastreio
+                return redirect(url_for('acesso.rastreio_token', chave=token))
+            else:
+                # Token inválido, redireciona para a página de erro
+                return render_template("erro.html", mensagem="Token de acesso inválido.")
+
+        except mysql.connector.Error as err:
+            logger.error(f"Erro ao verificar token: {err}")
+            return render_template("erro.html", mensagem="Erro ao verificar o token.")
+        finally:
+            if conn and conn.is_connected():
+                conn.close()
+    else:  # Se for uma requisição GET
+        return redirect(url_for('acesso.acesso_token'))  # Redireciona para o formulário
+
 if __name__ == "__main__":
     logger.info("Iniciando aplicação Flask em modo debug.")
     app = Flask(__name__)
-    app.register_blueprint(rastreio_blueprint)
-    app.run(debug=True)
+    app.register_blueprint(acesso_blueprint)
+    app.run(debug=True, port=os.getenv('PORT', 5000))

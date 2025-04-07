@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Negado</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+        .sad-face {
+            font-size: 80px;
+            margin: 20px 0;
+            opacity: 0.8;
+        }
+        .message {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .error-box {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #e74c3c;
+        }
+        .button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .path {
+            font-family: monospace;
+            background-color: #eee;
+            padding: 5px 8px;
+            border-radius: 4px;
+            word-break: break-all;
+            display: inline-block;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Acesso Negado</h1>
+        
+        <div class="sad-face">😔</div>
+        
+        <div class="message">
+            <p>Infelizmente, você <strong>não possui acesso</strong> a esta página.</p>
+            <p>Tentamos localizar o recurso solicitado, mas não foi possível.</p>
+        </div>
+        
+        <div class="error-box">
+            <p>O endereço que você tentou acessar pode estar incorreto ou digitado de forma errada.</p>
+            <p>Verifique o Token de Acesso</p>
+        </div>
+        
+        <div class="message">
+            <p>Se você acredita que deveria ter acesso a esta página, entre em contato com a <strong>equipe de logística da Skymsen</strong>.</p>
+            <p>Todas as tentativas de acesso são registradas e monitoradas.</p>
+        </div>
+        
+        <a href="{{ url_for('acesso.acesso_token') }}" class="button">Voltar à página de acesso</a>
+    </div>
+
+    <script>
+        // Obter e exibir a URL atual
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlElement = document.getElementById('current-url');
+            urlElement.textContent = window.location.href;
+        });
+    </script>
+</body>
+</html>
